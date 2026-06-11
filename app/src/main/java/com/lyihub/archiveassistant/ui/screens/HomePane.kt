@@ -37,7 +37,6 @@ import com.lyihub.archiveassistant.ui.components.PaneHeader
 @Composable
 fun HomePane(
     title: String,
-    subtitle: String,
     parserInput: String,
     parserValidationMessage: String?,
     recentTopics: List<Topic>,
@@ -53,11 +52,12 @@ fun HomePane(
     PaneContainer(modifier = modifier.testTag("home-pane")) {
         PaneHeader(
             title = title,
-            subtitle = subtitle,
-            actions = {
+            navigationIcon = {
                 IconButton(
                     onClick = onOpenSettings,
-                    modifier = Modifier.testTag("settings-trigger"),
+                    modifier = Modifier
+                        .padding(end = 12.dp)
+                        .testTag("settings-trigger"),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
@@ -222,7 +222,7 @@ internal fun friendlyTime(epochMillis: Long, nowMillis: Long = System.currentTim
         diff < 60_000 -> "刚刚"
         diff < 3_600_000 -> "${diff / 60_000} 分钟前"
         diff < 86_400_000 -> "${diff / 3_600_000} 小时前"
-        diff < 604_800_000 -> "${diff / 86_400_000} 天前"
+        diff < 2_592_000_000L -> "${diff / 86_400_000} 天前"
         else -> "很久以前"
     }
 }

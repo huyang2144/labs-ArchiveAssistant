@@ -234,6 +234,18 @@ class ArchiveAssistantStateStoreTest {
     }
 
     @Test
+    fun renameTopic_updatesTimestamp() {
+        val store = ArchiveAssistantStateStore()
+        val topicBefore = store.state.topics.first { it.id == SampleKnowledgeData.DefaultTopicId }
+
+        store.renameTopic(SampleKnowledgeData.DefaultTopicId, "重命名后")
+
+        val topicAfter = store.state.topics.first { it.id == SampleKnowledgeData.DefaultTopicId }
+        assertEquals("重命名后", topicAfter.title)
+        assertTrue(topicAfter.updatedAtEpochMillis > topicBefore.updatedAtEpochMillis)
+    }
+
+    @Test
     fun confirmRenameTopic_whenDuplicate_keepsDialogOpenAndShowsValidation() {
         val store = ArchiveAssistantStateStore()
         val existingTitle = store.state.topics.first { it.id != SampleKnowledgeData.DefaultTopicId }.title

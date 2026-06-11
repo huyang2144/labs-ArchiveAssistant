@@ -72,6 +72,18 @@ fun ManagePane(
     PaneContainer(modifier = modifier.testTag("manage-pane")) {
         PaneHeader(
             title = "全部主题",
+            navigationIcon = {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.padding(end = 12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
             actions = {
                 IconButton(
                     onClick = onCreateTopic,
@@ -80,13 +92,6 @@ fun ManagePane(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "新建主题",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

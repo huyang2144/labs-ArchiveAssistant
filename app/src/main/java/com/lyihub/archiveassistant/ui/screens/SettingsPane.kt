@@ -3,6 +3,7 @@ package com.lyihub.archiveassistant.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -47,8 +48,11 @@ fun SettingsPane(
     PaneContainer(modifier = modifier.testTag("settings-pane")) {
         PaneHeader(
             title = "设置",
-            actions = {
-                IconButton(onClick = onBack) {
+            navigationIcon = {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.padding(end = 12.dp),
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "返回",

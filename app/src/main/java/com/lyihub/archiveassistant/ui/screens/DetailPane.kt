@@ -57,8 +57,11 @@ fun DetailPane(
     PaneContainer(modifier = modifier.testTag("detail-pane")) {
         PaneHeader(
             title = topic.title,
-            actions = {
-                IconButton(onClick = onBack) {
+            navigationIcon = {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.padding(end = 12.dp),
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "返回",

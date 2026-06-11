@@ -32,7 +32,13 @@ class FriendlyTimeTest {
     }
 
     @Test
-    fun friendlyTime_longAgo_returnsLongAgo() {
-        assertEquals("很久以前", friendlyTime(fixedNow - 10 * 86_400_000, fixedNow))
+    fun friendlyTime_daysAgo_returnsDaysForUpToOneMonth() {
+        assertEquals("10 天前", friendlyTime(fixedNow - 10L * 86_400_000, fixedNow))
+        assertEquals("29 天前", friendlyTime(fixedNow - 29L * 86_400_000, fixedNow))
+    }
+
+    @Test
+    fun friendlyTime_longAgo_returnsLongAgoForOverOneMonth() {
+        assertEquals("很久以前", friendlyTime(fixedNow - 31L * 86_400_000, fixedNow))
     }
 }

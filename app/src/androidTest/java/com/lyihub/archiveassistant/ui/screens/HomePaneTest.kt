@@ -24,7 +24,6 @@ class HomePaneTest {
             ArchiveAssistantTheme {
                 HomePane(
                     title = "聚合拾遗",
-                    subtitle = "基于大语言模型的知识自动分配器",
                     parserInput = "",
                     parserValidationMessage = null,
                     recentTopics = SampleKnowledgeData.topics.take(3),
@@ -55,7 +54,6 @@ class HomePaneTest {
             ArchiveAssistantTheme {
                 HomePane(
                     title = "聚合拾遗",
-                    subtitle = "基于大语言模型的知识自动分配器",
                     parserInput = inputValue,
                     parserValidationMessage = null,
                     recentTopics = emptyList(),
@@ -83,7 +81,6 @@ class HomePaneTest {
             ArchiveAssistantTheme {
                 HomePane(
                     title = "聚合拾遗",
-                    subtitle = "基于大语言模型的知识自动分配器",
                     parserInput = "   ",
                     parserValidationMessage = "请输入要归档的内容",
                     recentTopics = emptyList(),
@@ -111,7 +108,6 @@ class HomePaneTest {
             ArchiveAssistantTheme {
                 HomePane(
                     title = "聚合拾遗",
-                    subtitle = "基于大语言模型的知识自动分配器",
                     parserInput = "",
                     parserValidationMessage = null,
                     recentTopics = recent,
@@ -139,7 +135,6 @@ class HomePaneTest {
             ArchiveAssistantTheme {
                 HomePane(
                     title = "聚合拾遗",
-                    subtitle = "基于大语言模型的知识自动分配器",
                     parserInput = "",
                     parserValidationMessage = null,
                     recentTopics = emptyList(),

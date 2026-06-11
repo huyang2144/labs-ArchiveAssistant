@@ -184,9 +184,11 @@ class ArchiveAssistantStateStore(
             return
         }
 
+        val renameEpoch = GeneratedTopicEpochMillis + nextTopicIndex++
+
         state = state.copy(
             topics = state.topics.map { topic ->
-                if (topic.id == topicId) topic.copy(title = normalizedTitle) else topic
+                if (topic.id == topicId) topic.copy(title = normalizedTitle, updatedAtEpochMillis = renameEpoch) else topic
             },
             topicValidationMessage = null,
         )

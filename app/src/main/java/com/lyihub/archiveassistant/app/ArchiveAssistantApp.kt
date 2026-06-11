@@ -93,7 +93,6 @@ private fun SinglePaneLayout(
     when (state.selectedPane) {
         AppPane.TOPICS -> HomePane(
             title = "聚合拾遗",
-            subtitle = "基于大语言模型的知识自动分配器",
             parserInput = state.parserInput,
             parserValidationMessage = state.parserValidationMessage,
             recentTopics = state.recentTopics,
@@ -120,7 +119,6 @@ private fun SinglePaneLayout(
             } else {
                 HomePane(
                     title = "聚合拾遗",
-                    subtitle = "基于大语言模型的知识自动分配器",
                     parserInput = state.parserInput,
                     parserValidationMessage = state.parserValidationMessage,
                     recentTopics = state.recentTopics,
@@ -162,7 +160,6 @@ private fun SinglePaneLayout(
 
         AppPane.CLASSIFICATION_REVIEW -> HomePane(
             title = "聚合拾遗",
-            subtitle = "基于大语言模型的知识自动分配器",
             parserInput = state.parserInput,
             parserValidationMessage = state.parserValidationMessage,
             recentTopics = state.recentTopics,
@@ -189,7 +186,6 @@ private fun SinglePaneLayout(
             } else {
                 HomePane(
                     title = "聚合拾遗",
-                    subtitle = "基于大语言模型的知识自动分配器",
                     parserInput = state.parserInput,
                     parserValidationMessage = state.parserValidationMessage,
                     recentTopics = state.recentTopics,
@@ -219,7 +215,6 @@ private fun TwoPaneLayout(
         Box(modifier = Modifier.weight(1f)) {
             HomePane(
                 title = "聚合拾遗",
-                subtitle = "基于大语言模型的知识自动分配器",
                 parserInput = state.parserInput,
                 parserValidationMessage = state.parserValidationMessage,
                 recentTopics = state.recentTopics,

@@ -3,10 +3,13 @@ package com.lyihub.archiveassistant.ui.components
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,12 +28,15 @@ fun PaneHeader(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    navigationIcon: @Composable () -> Unit = {},
     actions: @Composable () -> Unit = {},
 ) {
     Surface(
         tonalElevation = 0.dp,
         color = MaterialTheme.colorScheme.surface,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.statusBars),
     ) {
         Row(
             modifier = Modifier
@@ -38,6 +44,7 @@ fun PaneHeader(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            navigationIcon()
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
@@ -81,5 +88,4 @@ fun HeaderIconButton(
         )
     }
 }
-
 
