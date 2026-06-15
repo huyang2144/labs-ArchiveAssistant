@@ -3,28 +3,77 @@ package com.lyihub.archiveassistant.state
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.lyihub.archiveassistant.data.AppDataRepository
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AppPane
 import com.lyihub.archiveassistant.domain.ClassificationResult
 import com.lyihub.archiveassistant.domain.ContentType
+import com.lyihub.archiveassistant.domain.DocumentFormat
 import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.domain.MockKnowledgeClassifier
 import com.lyihub.archiveassistant.domain.SampleKnowledgeData
 import com.lyihub.archiveassistant.domain.Topic
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class ArchiveAssistantStateStore(
     private val classifier: MockKnowledgeClassifier = MockKnowledgeClassifier(),
-    initialState: ArchiveAssistantState = ArchiveAssistantState(
+    private val initialState: ArchiveAssistantState = ArchiveAssistantState(
         topics = SampleKnowledgeData.topics,
         items = SampleKnowledgeData.items,
         aiSettings = SampleKnowledgeData.defaultAiEngineSettings,
     ),
+    private val appDataRepository: AppDataRepository? = null,
 ) {
-    var state: ArchiveAssistantState by mutableStateOf(initialState)
+    private val scope = CoroutineScope(Dispatchers.IO)
+
+    var state: ArchiveAssistantState by mutableStateOf(
+        appDataRepository?.let(::loadPersistedState) ?: initialState
+    )
         private set
 
-    private var nextTopicIndex = initialState.topics.size + 1
-    private var nextItemIndex = initialState.items.size + 1
+    private var nextTopicIndex = deriveNextTopicIndex(state.topics)
+    private var nextItemIndex = deriveNextItemIndex(state.items)
+
+    private fun loadPersistedState(repo: AppDataRepository): ArchiveAssistantState {
+        val persistedTopics = runBlocking { repo.loadTopics() }
+        val persistedItems = runBlocking { repo.loadItems() }
+        return if (persistedTopics.isNotEmpty() || persistedItems.isNotEmpty()) {
+            initialState.copy(
+                topics = persistedTopics,
+                items = persistedItems,
+            )
+        } else {
+            initialState
+        }
+    }
+
+    private fun saveData() {
+        val repo = appDataRepository ?: return
+        scope.launch {
+            repo.saveAll(state.topics, state.items)
+        }
+    }
+
+    private fun deriveNextTopicIndex(topics: List<Topic>): Int {
+        var maxIdx = -1
+        topics.forEach { topic ->
+            val parts = topic.id.removePrefix("topic-").split("-")
+            if (parts.size >= 2) parts.last().toIntOrNull()?.let { if (it > maxIdx) maxIdx = it }
+        }
+        return (if (maxIdx >= 0) maxIdx else topics.size) + 1
+    }
+
+    private fun deriveNextItemIndex(items: List<KnowledgeItem>): Int {
+        var maxIdx = -1
+        items.forEach { item ->
+            val parts = item.id.removePrefix("item-").split("-")
+            if (parts.size >= 2) parts.last().toIntOrNull()?.let { if (it > maxIdx) maxIdx = it }
+        }
+        return (if (maxIdx >= 0) maxIdx else items.size) + 1
+    }
 
     fun closePanes() {
         state = state.copy(
@@ -95,6 +144,74 @@ class ArchiveAssistantStateStore(
         state = state.copy(deleteConfirmTopicId = null)
     }
 
+    fun openAddItemDialog() {
+        state = state.copy(
+            addItemDialogVisible = true,
+            addItemDialogValidationMessage = null,
+        )
+    }
+
+    fun closeAddItemDialog() {
+        state = state.copy(
+            addItemDialogVisible = false,
+            addItemDialogValidationMessage = null,
+        )
+    }
+
+    fun confirmAddItem(
+        title: String,
+        contentType: ContentType,
+        sourceUrl: String?,
+        summary: String,
+        useAiSummary: Boolean,
+        documentFormat: DocumentFormat? = null,
+        fileName: String? = null,
+    ) {
+        val normalizedTitle = title.trim()
+        val normalizedSummary = summary.trim()
+        val normalizedSourceUrl = sourceUrl?.trim()?.takeIf { it.isNotBlank() }
+
+        val validationMessage = when {
+            normalizedTitle.isBlank() -> "请输入资料标题"
+            contentType == ContentType.WEB_ARTICLE && normalizedSourceUrl == null -> "请输入链接"
+            (contentType == ContentType.IMAGE_SCREENSHOT || contentType == ContentType.DOCUMENT)
+                && normalizedSourceUrl == null -> "请选择文件"
+            else -> null
+        }
+
+        if (validationMessage != null) {
+            state = state.copy(addItemDialogValidationMessage = validationMessage)
+            return
+        }
+
+        val topicId = state.selectedTopicId ?: return
+        val itemIndex = nextItemIndex++
+        val now = System.currentTimeMillis()
+        val finalSummary = if (useAiSummary) "" else normalizedSummary
+        val item = KnowledgeItem(
+            id = "item-user-$itemIndex",
+            topicId = topicId,
+            contentType = contentType,
+            tag = contentType.label,
+            title = normalizedTitle,
+            summary = finalSummary,
+            fullText = finalSummary,
+            sourceUrl = normalizedSourceUrl,
+            documentFormat = documentFormat,
+            fileName = fileName,
+            createdAtEpochMillis = now,
+        )
+        state = state.copy(
+            items = state.items + item,
+            topics = state.topics.map { topic ->
+                if (topic.id == topicId) topic.copy(updatedAtEpochMillis = now) else topic
+            },
+            addItemDialogVisible = false,
+            addItemDialogValidationMessage = null,
+        )
+        saveData()
+    }
+
     fun confirmDeleteTopic() {
         val topicId = state.deleteConfirmTopicId ?: return
         closeDeleteConfirmDialog()
@@ -116,6 +233,10 @@ class ArchiveAssistantStateStore(
         state = state.copy(parserInput = input, parserValidationMessage = null)
     }
 
+    fun updateHomeSearchQuery(query: String) {
+        state = state.copy(homeSearchQuery = query)
+    }
+
     fun submitParserInput() {
         when (val result = classifier.classify(state.parserInput, state.topics)) {
             is ClassificationResult.BlankInput -> {
@@ -135,20 +256,22 @@ class ArchiveAssistantStateStore(
                     summary = payload.summary,
                     fullText = payload.rawInput,
                     sourceUrl = payload.rawInput.extractSourceUrl(payload.contentType),
+                    documentFormat = payload.documentFormat,
                     createdAtEpochMillis = now,
                 )
-                state = state.copy(
-                    items = state.items + item,
-                    topics = state.topics.map { topic ->
-                        if (topic.id == payload.topicId) topic.copy(updatedAtEpochMillis = now) else topic
-                    },
-                    parserInput = "",
-                    parserValidationMessage = null,
-                    selectedPane = AppPane.DETAIL,
-                    selectedTopicId = payload.topicId,
-                    activeDetailFilter = ContentType.ALL,
-                )
-            }
+        state = state.copy(
+            items = state.items + item,
+            topics = state.topics.map { topic ->
+                if (topic.id == payload.topicId) topic.copy(updatedAtEpochMillis = now) else topic
+            },
+            parserInput = "",
+            parserValidationMessage = null,
+            selectedPane = AppPane.DETAIL,
+            selectedTopicId = payload.topicId,
+            activeDetailFilter = ContentType.ALL,
+        )
+        saveData()
+    }
         }
     }
 
@@ -174,6 +297,7 @@ class ArchiveAssistantStateStore(
             selectedTopicId = topic.id,
             topicValidationMessage = null,
         )
+        saveData()
     }
 
     fun renameTopic(topicId: String, title: String) {
@@ -192,6 +316,7 @@ class ArchiveAssistantStateStore(
             },
             topicValidationMessage = null,
         )
+        saveData()
     }
 
     fun deleteTopic(topicId: String) {
@@ -205,6 +330,7 @@ class ArchiveAssistantStateStore(
             modalItem = state.modalItem?.takeUnless { it.topicId == topicId },
             topicValidationMessage = null,
         )
+        saveData()
     }
 
     fun selectFilter(contentType: ContentType) {

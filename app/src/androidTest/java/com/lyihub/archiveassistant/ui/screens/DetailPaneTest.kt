@@ -34,6 +34,8 @@ class DetailPaneTest {
                     onBack = {},
                     onFilterSelected = {},
                     onItemClick = {},
+                    onAddItemClick = {},
+                    searchQuery = "",
                 )
             }
         }
@@ -58,14 +60,16 @@ class DetailPaneTest {
                     onBack = {},
                     onFilterSelected = { selectedFilter = it },
                     onItemClick = {},
+                    onAddItemClick = {},
+                    searchQuery = "",
                 )
             }
         }
 
-        composeTestRule.onNodeWithText("文档/PDF").performClick()
-        assertEquals(ContentType.DOCUMENT_PDF, selectedFilter)
+        composeTestRule.onNodeWithText("文档").performClick()
+        assertEquals(ContentType.DOCUMENT, selectedFilter)
 
-        composeTestRule.onNodeWithText("网页文章").performClick()
+        composeTestRule.onNodeWithText("网页").performClick()
         assertEquals(ContentType.WEB_ARTICLE, selectedFilter)
     }
 
@@ -76,10 +80,12 @@ class DetailPaneTest {
                 DetailPane(
                     topic = defaultTopic,
                     items = emptyList(),
-                    activeFilter = ContentType.DOCUMENT_PDF,
+                    activeFilter = ContentType.DOCUMENT,
                     onBack = {},
                     onFilterSelected = {},
                     onItemClick = {},
+                    onAddItemClick = {},
+                    searchQuery = "",
                 )
             }
         }
@@ -101,6 +107,8 @@ class DetailPaneTest {
                     onBack = {},
                     onFilterSelected = {},
                     onItemClick = { clickedItemId = it },
+                    onAddItemClick = {},
+                    searchQuery = "",
                 )
             }
         }
@@ -127,7 +135,7 @@ class DetailPaneTest {
         composeTestRule.onNodeWithTag("card-modal").assertIsDisplayed()
         composeTestRule.onNodeWithTag("card-modal-close").assertIsDisplayed()
         composeTestRule.onNodeWithText(item.title).assertIsDisplayed()
-        composeTestRule.onNodeWithText("类型: ${item.contentType.label}").assertIsDisplayed()
+        composeTestRule.onNodeWithText(item.tag).assertIsDisplayed()
 
         composeTestRule.onNodeWithTag("card-modal-close").performClick()
         assertTrue(closeCalled)

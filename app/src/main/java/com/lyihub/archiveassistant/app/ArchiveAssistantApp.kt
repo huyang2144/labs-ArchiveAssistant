@@ -18,12 +18,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
+import com.lyihub.archiveassistant.data.AppDataRepository
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AppPane
 import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
 import com.lyihub.archiveassistant.ui.layout.LayoutMode
 import com.lyihub.archiveassistant.ui.layout.rememberWindowLayoutInfo
 import com.lyihub.archiveassistant.ui.layout.shouldShowTwoPanes
+import com.lyihub.archiveassistant.ui.screens.AddItemDialog
 import com.lyihub.archiveassistant.ui.screens.CardModal
 import com.lyihub.archiveassistant.ui.screens.DetailPane
 import com.lyihub.archiveassistant.ui.screens.HomePane
@@ -33,12 +35,16 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ArchiveAssistantApp(
-    stateStore: ArchiveAssistantStateStore = androidx.compose.runtime.remember { ArchiveAssistantStateStore() },
+    stateStore: ArchiveAssistantStateStore? = null,
     aiSettingsRepository: AiEngineSettingsRepository? = null,
+    appDataRepository: AppDataRepository? = null,
 ) {
+    val effectiveStateStore = stateStore ?: androidx.compose.runtime.remember(appDataRepository) {
+        ArchiveAssistantStateStore(appDataRepository = appDataRepository)
+    }
     val coroutineScope = rememberCoroutineScope()
     val onAiSettingsChanged: (AiEngineSettings) -> Unit = { settings ->
-        stateStore.updateAiSettings(settings)
+        effectiveStateStore.updateAiSettings(settings)
         aiSettingsRepository?.let { repository ->
             coroutineScope.launch {
                 repository.save(settings)
@@ -47,10 +53,10 @@ fun ArchiveAssistantApp(
     }
 
     LaunchedEffect(aiSettingsRepository) {
-        aiSettingsRepository?.settings?.collect(stateStore::updateAiSettings)
+        aiSettingsRepository?.settings?.collect(effectiveStateStore::updateAiSettings)
     }
 
-    val state = stateStore.state
+    val state = effectiveStateStore.state
     val layoutInfo = rememberWindowLayoutInfo()
     val showTwoPanes = layoutInfo.shouldShowTwoPanes(state.selectedTopicId)
 
@@ -67,13 +73,13 @@ fun ArchiveAssistantApp(
     ) {
         if (showTwoPanes) {
             TwoPaneLayout(
-                stateStore = stateStore,
+                stateStore = effectiveStateStore,
                 layoutInfo = layoutInfo,
                 onAiSettingsChanged = onAiSettingsChanged,
             )
         } else {
             SinglePaneLayout(
-                stateStore = stateStore,
+                stateStore = effectiveStateStore,
                 onAiSettingsChanged = onAiSettingsChanged,
             )
         }
@@ -81,7 +87,7 @@ fun ArchiveAssistantApp(
         state.modalItem?.let { item ->
             CardModal(
                 item = item,
-                onClose = stateStore::closeCardModal,
+                onClose = effectiveStateStore::closeCardModal,
             )
         }
     }
@@ -99,14 +105,16 @@ private fun SinglePaneLayout(
             title = "聚合拾遗",
             parserInput = state.parserInput,
             parserValidationMessage = state.parserValidationMessage,
-            recentTopics = state.recentTopics,
+            recentTopics = state.searchedTopics,
             itemsByTopic = state.itemsByTopic,
+            searchQuery = state.homeSearchQuery,
             onParserInputChanged = stateStore::updateParserInput,
             onSubmitParserInput = stateStore::submitParserInput,
             onTopicSelected = stateStore::openTopic,
             onOpenSettings = stateStore::openSettings,
             onOpenManage = stateStore::openTopicManagement,
             onCreateTopic = stateStore::openTopicManagementForCreate,
+            onSearchQueryChanged = stateStore::updateHomeSearchQuery,
         )
 
         AppPane.DETAIL -> {
@@ -116,23 +124,36 @@ private fun SinglePaneLayout(
                     topic = topic,
                     items = state.filteredSelectedTopicItems,
                     activeFilter = state.activeDetailFilter,
+                    searchQuery = state.homeSearchQuery,
                     onBack = stateStore::closePanes,
                     onFilterSelected = stateStore::selectFilter,
                     onItemClick = stateStore::openCardModal,
+                    onAddItemClick = stateStore::openAddItemDialog,
                 )
+                if (state.addItemDialogVisible) {
+                    AddItemDialog(
+                        onDismiss = stateStore::closeAddItemDialog,
+                        onConfirm = { title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
+                            stateStore.confirmAddItem(title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
+                        },
+                        validationMessage = state.addItemDialogValidationMessage,
+                    )
+                }
             } else {
                 HomePane(
                     title = "聚合拾遗",
                     parserInput = state.parserInput,
                     parserValidationMessage = state.parserValidationMessage,
-                    recentTopics = state.recentTopics,
+                    recentTopics = state.searchedTopics,
                     itemsByTopic = state.itemsByTopic,
+                    searchQuery = state.homeSearchQuery,
                     onParserInputChanged = stateStore::updateParserInput,
                     onSubmitParserInput = stateStore::submitParserInput,
                     onTopicSelected = stateStore::openTopic,
                     onOpenSettings = stateStore::openSettings,
                     onOpenManage = stateStore::openTopicManagement,
                     onCreateTopic = stateStore::openTopicManagementForCreate,
+                    onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                 )
             }
         }
@@ -166,14 +187,16 @@ private fun SinglePaneLayout(
             title = "聚合拾遗",
             parserInput = state.parserInput,
             parserValidationMessage = state.parserValidationMessage,
-            recentTopics = state.recentTopics,
+            recentTopics = state.searchedTopics,
             itemsByTopic = state.itemsByTopic,
+            searchQuery = state.homeSearchQuery,
             onParserInputChanged = stateStore::updateParserInput,
             onSubmitParserInput = stateStore::submitParserInput,
             onTopicSelected = stateStore::openTopic,
             onOpenSettings = stateStore::openSettings,
             onOpenManage = stateStore::openTopicManagement,
             onCreateTopic = stateStore::openTopicManagementForCreate,
+            onSearchQueryChanged = stateStore::updateHomeSearchQuery,
         )
 
         AppPane.CARD_DETAIL -> {
@@ -183,23 +206,36 @@ private fun SinglePaneLayout(
                     topic = topic,
                     items = state.filteredSelectedTopicItems,
                     activeFilter = state.activeDetailFilter,
+                    searchQuery = state.homeSearchQuery,
                     onBack = stateStore::closeCardModal,
                     onFilterSelected = stateStore::selectFilter,
                     onItemClick = stateStore::openCardModal,
+                    onAddItemClick = stateStore::openAddItemDialog,
                 )
+                if (state.addItemDialogVisible) {
+                    AddItemDialog(
+                        onDismiss = stateStore::closeAddItemDialog,
+                        onConfirm = { title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
+                            stateStore.confirmAddItem(title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
+                        },
+                        validationMessage = state.addItemDialogValidationMessage,
+                    )
+                }
             } else {
                 HomePane(
                     title = "聚合拾遗",
                     parserInput = state.parserInput,
                     parserValidationMessage = state.parserValidationMessage,
-                    recentTopics = state.recentTopics,
+                    recentTopics = state.searchedTopics,
                     itemsByTopic = state.itemsByTopic,
+                    searchQuery = state.homeSearchQuery,
                     onParserInputChanged = stateStore::updateParserInput,
                     onSubmitParserInput = stateStore::submitParserInput,
                     onTopicSelected = stateStore::openTopic,
                     onOpenSettings = stateStore::openSettings,
                     onOpenManage = stateStore::openTopicManagement,
                     onCreateTopic = stateStore::openTopicManagementForCreate,
+                    onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                 )
             }
         }
@@ -221,14 +257,16 @@ private fun TwoPaneLayout(
                 title = "聚合拾遗",
                 parserInput = state.parserInput,
                 parserValidationMessage = state.parserValidationMessage,
-                recentTopics = state.recentTopics,
+                recentTopics = state.searchedTopics,
                 itemsByTopic = state.itemsByTopic,
+                searchQuery = state.homeSearchQuery,
                 onParserInputChanged = stateStore::updateParserInput,
                 onSubmitParserInput = stateStore::submitParserInput,
                 onTopicSelected = stateStore::openTopic,
                 onOpenSettings = stateStore::openSettings,
                 onOpenManage = stateStore::openTopicManagement,
                 onCreateTopic = stateStore::openTopicManagementForCreate,
+                onSearchQueryChanged = stateStore::updateHomeSearchQuery,
             )
         }
 
@@ -263,10 +301,21 @@ private fun TwoPaneLayout(
                             topic = topic,
                             items = state.filteredSelectedTopicItems,
                             activeFilter = state.activeDetailFilter,
+                            searchQuery = state.homeSearchQuery,
                             onBack = stateStore::closePanes,
                             onFilterSelected = stateStore::selectFilter,
                             onItemClick = stateStore::openCardModal,
+                            onAddItemClick = stateStore::openAddItemDialog,
                         )
+                        if (state.addItemDialogVisible) {
+                            AddItemDialog(
+                                onDismiss = stateStore::closeAddItemDialog,
+                                onConfirm = { title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
+                            stateStore.confirmAddItem(title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
+                        },
+                                validationMessage = state.addItemDialogValidationMessage,
+                            )
+                        }
                     }
                 }
 
@@ -306,10 +355,21 @@ private fun TwoPaneLayout(
                             topic = topic,
                             items = state.filteredSelectedTopicItems,
                             activeFilter = state.activeDetailFilter,
+                            searchQuery = state.homeSearchQuery,
                             onBack = stateStore::closeCardModal,
                             onFilterSelected = stateStore::selectFilter,
                             onItemClick = stateStore::openCardModal,
+                            onAddItemClick = stateStore::openAddItemDialog,
                         )
+                        if (state.addItemDialogVisible) {
+                            AddItemDialog(
+                                onDismiss = stateStore::closeAddItemDialog,
+                                onConfirm = { title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
+                            stateStore.confirmAddItem(title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
+                        },
+                                validationMessage = state.addItemDialogValidationMessage,
+                            )
+                        }
                     }
                 }
             }

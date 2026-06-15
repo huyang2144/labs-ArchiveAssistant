@@ -9,9 +9,11 @@ import androidx.compose.runtime.remember
 import androidx.datastore.preferences.preferencesDataStore
 import com.lyihub.archiveassistant.app.ArchiveAssistantApp
 import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
+import com.lyihub.archiveassistant.data.AppDataRepository
 import com.lyihub.archiveassistant.ui.theme.ArchiveAssistantTheme
 
 private val Context.aiEngineSettingsDataStore by preferencesDataStore(name = "ai_engine_settings")
+private val Context.appDataStore by preferencesDataStore(name = "app_data")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,8 +23,14 @@ class MainActivity : ComponentActivity() {
             val aiSettingsRepository = remember {
                 AiEngineSettingsRepository(aiEngineSettingsDataStore)
             }
+            val appDataRepository = remember {
+                AppDataRepository(appDataStore)
+            }
             ArchiveAssistantTheme {
-                ArchiveAssistantApp(aiSettingsRepository = aiSettingsRepository)
+                ArchiveAssistantApp(
+                    aiSettingsRepository = aiSettingsRepository,
+                    appDataRepository = appDataRepository,
+                )
             }
         }
     }

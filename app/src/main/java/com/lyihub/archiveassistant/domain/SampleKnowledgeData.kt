@@ -45,7 +45,8 @@ object SampleKnowledgeData {
         KnowledgeItem(
             id = "item-attention-pdf",
             topicId = DefaultTopicId,
-            contentType = ContentType.DOCUMENT_PDF,
+            contentType = ContentType.DOCUMENT,
+            documentFormat = DocumentFormat.PDF,
             tag = "文档",
             title = "Attention 机制",
             summary = "Transformer 抛弃 RNN 结构后的核心注意力机制摘要。",
@@ -90,7 +91,8 @@ object SampleKnowledgeData {
         KnowledgeItem(
             id = "item-anthropology-note",
             topicId = "topic-anthropology-clips",
-            contentType = ContentType.DOCUMENT_PDF,
+            contentType = ContentType.DOCUMENT,
+            documentFormat = DocumentFormat.PDF,
             tag = "文档",
             title = "田野笔记片段",
             summary = "阅读剪报中的短文本摘录。",

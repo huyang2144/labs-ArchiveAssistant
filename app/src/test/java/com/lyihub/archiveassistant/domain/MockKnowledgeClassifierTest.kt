@@ -32,9 +32,47 @@ class MockKnowledgeClassifierTest {
         val result = classifier.classify("PDF document report about attention mechanism")
 
         val payload = result.assertClassified()
-        assertEquals(ContentType.DOCUMENT_PDF, payload.contentType)
+        assertEquals(ContentType.DOCUMENT, payload.contentType)
+        assertEquals(DocumentFormat.PDF, payload.documentFormat)
         assertEquals("文档", payload.tag)
         assertEquals(SampleKnowledgeData.DefaultTopicId, payload.topicId)
+    }
+
+    @Test
+    fun classify_markdownFile_returnsDocumentWithMarkdownFormat() {
+        val result = classifier.classify("readme.md project documentation in markdown")
+
+        val payload = result.assertClassified()
+        assertEquals(ContentType.DOCUMENT, payload.contentType)
+        assertEquals(DocumentFormat.MARKDOWN, payload.documentFormat)
+        assertEquals("文档", payload.tag)
+    }
+
+    @Test
+    fun classify_docxFile_returnsDocumentWithDocxFormat() {
+        val result = classifier.classify("report.docx word document")
+
+        val payload = result.assertClassified()
+        assertEquals(ContentType.DOCUMENT, payload.contentType)
+        assertEquals(DocumentFormat.DOCX, payload.documentFormat)
+    }
+
+    @Test
+    fun classify_txtFile_returnsDocumentWithTxtFormat() {
+        val result = classifier.classify("notes.txt 纯文本")
+
+        val payload = result.assertClassified()
+        assertEquals(ContentType.DOCUMENT, payload.contentType)
+        assertEquals(DocumentFormat.TXT, payload.documentFormat)
+    }
+
+    @Test
+    fun classify_unknownDocument_returnsDocumentWithUnknownFormat() {
+        val result = classifier.classify("document 文档 without specific format clue")
+
+        val payload = result.assertClassified()
+        assertEquals(ContentType.DOCUMENT, payload.contentType)
+        assertEquals(DocumentFormat.UNKNOWN, payload.documentFormat)
     }
 
     @Test
@@ -62,12 +100,12 @@ class MockKnowledgeClassifierTest {
             ContentType.entries.map { it.label },
         )
         assertEquals(
-            listOf("大模型架构研究", "UX/UI 灵感板", "阅读剪报：人类学", "冷门旅行地参考"),
+            listOf("大模型架构研究", "UX/UI 灵感板", "阅读剪报：人类学", "冷门旅行地参考", "开源工具收藏"),
             SampleKnowledgeData.topics.map { it.title },
         )
         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.WEB_ARTICLE })
         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.IMAGE_SCREENSHOT })
-        assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.DOCUMENT_PDF })
+        assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.DOCUMENT })
         assertTrue(SampleKnowledgeData.topics.all { it.id.isNotBlank() && it.updatedAtEpochMillis > 0L })
         assertTrue(SampleKnowledgeData.items.all { it.id.isNotBlank() && it.createdAtEpochMillis > 0L })
     }

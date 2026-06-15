@@ -10,6 +10,9 @@ class MockKnowledgeClassifier(
         }
 
         val contentType = detectContentType(normalizedInput)
+        val documentFormat = if (contentType == ContentType.DOCUMENT) {
+            detectDocumentFormat(normalizedInput)
+        } else null
         val topic = selectTopic(normalizedInput, topics)
 
         return ClassificationResult.Classified(
@@ -20,15 +23,27 @@ class MockKnowledgeClassifier(
                 title = titleFor(normalizedInput),
                 summary = normalizedInput.take(96),
                 rawInput = normalizedInput,
+                documentFormat = documentFormat,
             ),
         )
+    }
+
+    private fun detectDocumentFormat(input: String): DocumentFormat {
+        val lowerInput = input.lowercase()
+        return when {
+            ".pdf" in lowerInput || lowerInput.contains("pdf") -> DocumentFormat.PDF
+            ".md" in lowerInput || lowerInput.contains("markdown") -> DocumentFormat.MARKDOWN
+            ".docx" in lowerInput || lowerInput.contains("word") -> DocumentFormat.DOCX
+            ".txt" in lowerInput || lowerInput.contains("纯文本") -> DocumentFormat.TXT
+            else -> DocumentFormat.UNKNOWN
+        }
     }
 
     private fun detectContentType(input: String): ContentType {
         val lowerInput = input.lowercase()
         return when {
             imageTerms.any { it in lowerInput } -> ContentType.IMAGE_SCREENSHOT
-            documentTerms.any { it in lowerInput } -> ContentType.DOCUMENT_PDF
+            documentTerms.any { it in lowerInput } -> ContentType.DOCUMENT
             urlTerms.any { it in lowerInput } || urlRegex.containsMatchIn(input) -> ContentType.WEB_ARTICLE
             else -> ContentType.WEB_ARTICLE
         }
@@ -64,13 +79,13 @@ class MockKnowledgeClassifier(
         ContentType.ALL -> "全部"
         ContentType.WEB_ARTICLE -> "网页"
         ContentType.IMAGE_SCREENSHOT -> "图像"
-        ContentType.DOCUMENT_PDF -> "文档"
+        ContentType.DOCUMENT -> "文档"
     }
 
     private companion object {
         val urlRegex = Regex("https?://\\S+|www\\.\\S+")
         val urlTerms = listOf("url", "http", "article", "web", "link", "网页", "文章", "链接")
         val imageTerms = listOf("image", "screenshot", "screen shot", "photo", "png", "jpg", "jpeg", "图片", "图像", "截图", "截屏")
-        val documentTerms = listOf("pdf", "document", "doc", "paper", "report", "文档", "论文", "报告")
+        val documentTerms = listOf("pdf", "document", "doc", "docx", "paper", "report", "txt", ".txt", ".md", ".docx", ".doc", "markdown", "word", "纯文本", "文档", "论文", "报告")
     }
 }

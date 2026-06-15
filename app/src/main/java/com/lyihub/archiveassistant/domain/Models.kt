@@ -18,6 +18,9 @@ data class KnowledgeItem(
     val fullText: String,
     val sourceUrl: String?,
     val imageResName: String? = null,
+    val documentFormat: DocumentFormat? = null,
+    val fileName: String? = null,
+    val fileSize: Long? = null,
     val createdAtEpochMillis: Long,
 )
 
@@ -25,7 +28,15 @@ enum class ContentType(val label: String) {
     ALL("全部"),
     WEB_ARTICLE("网页"),
     IMAGE_SCREENSHOT("图像"),
-    DOCUMENT_PDF("文档"),
+    DOCUMENT("文档"),
+}
+
+enum class DocumentFormat(val label: String, val extension: String) {
+    PDF("PDF", ".pdf"),
+    MARKDOWN("Markdown", ".md"),
+    TXT("纯文本", ".txt"),
+    DOCX("Word", ".docx"),
+    UNKNOWN("未知文档", ""),
 }
 
 enum class AiEngineType {
@@ -57,6 +68,7 @@ data class ClassificationPayload(
     val title: String,
     val summary: String,
     val rawInput: String,
+    val documentFormat: DocumentFormat? = null,
 )
 
 sealed interface ClassificationResult {

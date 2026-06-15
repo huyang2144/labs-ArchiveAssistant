@@ -25,6 +25,9 @@ data class ArchiveAssistantState(
     val topicNameDialogMode: TopicNameDialogMode? = null,
     val topicNameDialogTopicId: String? = null,
     val deleteConfirmTopicId: String? = null,
+    val addItemDialogVisible: Boolean = false,
+    val addItemDialogValidationMessage: String? = null,
+    val homeSearchQuery: String = "",
 ) {
     val itemsByTopic: Map<String, List<KnowledgeItem>> = items.groupBy { it.topicId }
 
@@ -42,4 +45,17 @@ data class ArchiveAssistantState(
     val recentTopics: List<Topic> = topics
         .sortedByDescending { it.updatedAtEpochMillis }
         .take(5)
+
+    val searchedTopics: List<Topic> = if (homeSearchQuery.isBlank()) {
+        recentTopics
+    } else {
+        val query = homeSearchQuery.lowercase()
+        val matchingTopicIds = items
+            .filter { it.title.lowercase().contains(query) || it.summary.lowercase().contains(query) }
+            .map { it.topicId }
+            .toSet()
+        topics
+            .filter { it.title.lowercase().contains(query) || it.id in matchingTopicIds }
+            .sortedByDescending { it.updatedAtEpochMillis }
+    }
 }

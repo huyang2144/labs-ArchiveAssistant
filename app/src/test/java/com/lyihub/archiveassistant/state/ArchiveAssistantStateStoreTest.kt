@@ -284,29 +284,29 @@ class ArchiveAssistantStateStoreTest {
         val store = ArchiveAssistantStateStore()
         store.openTopic(SampleKnowledgeData.DefaultTopicId)
 
-        store.selectFilter(ContentType.DOCUMENT_PDF)
+        store.selectFilter(ContentType.DOCUMENT)
 
-        assertEquals(ContentType.DOCUMENT_PDF, store.state.activeDetailFilter)
+        assertEquals(ContentType.DOCUMENT, store.state.activeDetailFilter)
         assertTrue(store.state.filteredSelectedTopicItems.isNotEmpty())
-        assertTrue(store.state.filteredSelectedTopicItems.all { it.contentType == ContentType.DOCUMENT_PDF })
+        assertTrue(store.state.filteredSelectedTopicItems.all { it.contentType == ContentType.DOCUMENT })
     }
 
     @Test
     fun closeCardModal_preservesSelectedFilterAndTopic() {
         val store = ArchiveAssistantStateStore()
         store.openTopic(SampleKnowledgeData.DefaultTopicId)
-        store.selectFilter(ContentType.DOCUMENT_PDF)
+        store.selectFilter(ContentType.DOCUMENT)
 
         val itemId = store.state.filteredSelectedTopicItems.first().id
         store.openCardModal(itemId)
         assertEquals(AppPane.CARD_DETAIL, store.state.selectedPane)
         assertEquals(itemId, store.state.modalItem?.id)
-        assertEquals(ContentType.DOCUMENT_PDF, store.state.activeDetailFilter)
+        assertEquals(ContentType.DOCUMENT, store.state.activeDetailFilter)
 
         store.closeCardModal()
         assertEquals(AppPane.DETAIL, store.state.selectedPane)
         assertNull(store.state.modalItem)
-        assertEquals(ContentType.DOCUMENT_PDF, store.state.activeDetailFilter)
+        assertEquals(ContentType.DOCUMENT, store.state.activeDetailFilter)
         assertEquals(SampleKnowledgeData.DefaultTopicId, store.state.selectedTopicId)
     }
 

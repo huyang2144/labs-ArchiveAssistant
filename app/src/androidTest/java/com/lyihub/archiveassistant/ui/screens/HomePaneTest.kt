@@ -34,6 +34,8 @@ class HomePaneTest {
                     onOpenSettings = {},
                     onOpenManage = {},
                     onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
                 )
             }
         }
@@ -64,6 +66,8 @@ class HomePaneTest {
                     onOpenSettings = {},
                     onOpenManage = {},
                     onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
                 )
             }
         }
@@ -91,6 +95,8 @@ class HomePaneTest {
                     onOpenSettings = {},
                     onOpenManage = {},
                     onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
                 )
             }
         }
@@ -118,6 +124,8 @@ class HomePaneTest {
                     onOpenSettings = {},
                     onOpenManage = {},
                     onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
                 )
             }
         }
@@ -145,6 +153,8 @@ class HomePaneTest {
                     onOpenSettings = {},
                     onOpenManage = {},
                     onCreateTopic = { createTopicCalled = true },
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
                 )
             }
         }
