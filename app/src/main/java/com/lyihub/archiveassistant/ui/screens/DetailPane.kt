@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -41,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -853,6 +856,78 @@ private fun mimeTypeFor(
         DocumentFormat.DOCX -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         else -> if (item.contentType == ContentType.IMAGE_SCREENSHOT) "image/*" else "*/*"
     }
+}
+
+@Composable
+fun ClipboardDialog(
+    content: String,
+    imageUri: String? = null,
+    onSummarize: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    var imageBitmap by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    val hasContent = content.isNotBlank()
+
+    LaunchedEffect(imageUri) {
+        val uriStr = imageUri
+        if (uriStr != null) {
+            val bitmap = withContext(Dispatchers.IO) {
+                try {
+                    val uri = Uri.parse(uriStr)
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        BitmapFactory.decodeStream(input)?.asImageBitmap()
+                    }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            imageBitmap = bitmap
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("检测到剪切板内容") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                imageBitmap?.let { bmp ->
+                    Image(
+                        bitmap = bmp,
+                        contentDescription = "剪切板图片",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 200.dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                }
+                if (hasContent) {
+                    Text(
+                        text = content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onSummarize) {
+                Text("智能归纳")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("忽略")
+            }
+        },
+    )
 }
 
 @Composable

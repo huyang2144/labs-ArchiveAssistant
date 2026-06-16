@@ -1,5 +1,7 @@
 package com.lyihub.archiveassistant.app
 
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -11,14 +13,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.lyihub.archiveassistant.data.AiEnginePresetRepository
 import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
 import com.lyihub.archiveassistant.data.AppDataRepository
@@ -31,6 +38,7 @@ import com.lyihub.archiveassistant.ui.layout.rememberWindowLayoutInfo
 import com.lyihub.archiveassistant.ui.layout.shouldShowTwoPanes
 import com.lyihub.archiveassistant.ui.screens.AddItemDialog
 import com.lyihub.archiveassistant.ui.screens.CardModal
+import com.lyihub.archiveassistant.ui.screens.ClipboardDialog
 import com.lyihub.archiveassistant.ui.screens.DeleteItemConfirmDialog
 import com.lyihub.archiveassistant.ui.screens.DetailPane
 import com.lyihub.archiveassistant.ui.screens.HomePane
@@ -73,6 +81,29 @@ fun ArchiveAssistantApp(
 
     LaunchedEffect(aiSettingsRepository) {
         aiSettingsRepository?.settings?.collect(effectiveStateStore::updateAiSettings)
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val view = LocalView.current
+    DisposableEffect(lifecycleOwner, context, view, effectiveStateStore) {
+        var pendingRead: Runnable? = null
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                pendingRead?.let(view::removeCallbacks)
+                pendingRead = Runnable {
+                    if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        readClipboardPayload(context)?.let { payload ->
+                            effectiveStateStore.showClipboard(payload.text.orEmpty(), payload.imageUri)
+                        }
+                    }
+                }.also { view.postDelayed(it, 200) }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            pendingRead?.let(view::removeCallbacks)
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     val state = effectiveStateStore.state
@@ -135,7 +166,42 @@ fun ArchiveAssistantApp(
                 onDismiss = effectiveStateStore::closeDeleteItemConfirmDialog,
             )
         }
+
+        if (state.showClipboardDialog) {
+            ClipboardDialog(
+                content = state.clipboardContent ?: "",
+                imageUri = state.clipboardImageUri,
+                onSummarize = effectiveStateStore::acceptClipboardAndSummarize,
+                onDismiss = effectiveStateStore::dismissClipboardDialog,
+            )
+        }
     }
+}
+
+private data class ClipboardPayload(
+    val text: String?,
+    val imageUri: String?,
+)
+
+private fun readClipboardPayload(context: Context): ClipboardPayload? {
+    val clip = try {
+        context.getSystemService(ClipboardManager::class.java)?.primaryClip
+    } catch (_: Exception) {
+        null
+    } ?: return null
+
+    val text = (0 until clip.itemCount)
+        .firstNotNullOfOrNull { index ->
+            clip.getItemAt(index).coerceToText(context)?.toString()?.trim()?.takeIf { it.isNotBlank() }
+        }
+    val imageUri = if (clip.description.hasMimeType("image/*")) {
+        (0 until clip.itemCount)
+            .firstNotNullOfOrNull { index -> clip.getItemAt(index).uri?.toString() }
+    } else {
+        null
+    }
+
+    return if (text != null || imageUri != null) ClipboardPayload(text, imageUri) else null
 }
 
 @Composable
@@ -450,4 +516,3 @@ private fun EmptyDetailPane() {
         }
     }
 }
-

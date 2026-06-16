@@ -461,6 +461,32 @@ class ArchiveAssistantStateStore(
         )
     }
 
+    fun showClipboard(content: String, imageUri: String? = null) {
+        state = state.copy(
+            clipboardContent = content.ifBlank { null },
+            clipboardImageUri = imageUri,
+            showClipboardDialog = true,
+        )
+    }
+
+    fun dismissClipboardDialog() {
+        state = state.copy(
+            clipboardContent = null,
+            clipboardImageUri = null,
+            showClipboardDialog = false,
+        )
+    }
+
+    fun acceptClipboardAndSummarize() {
+        val content = state.clipboardContent ?: return
+        state = state.copy(
+            parserInput = content,
+            clipboardContent = null,
+            showClipboardDialog = false,
+        )
+        submitParserInput()
+    }
+
     fun updateAiSettings(settings: AiEngineSettings) {
         state = state.copy(aiSettings = settings)
     }
