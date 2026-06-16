@@ -13,13 +13,16 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.lyihub.archiveassistant.data.AiEnginePresetRepository
 import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
 import com.lyihub.archiveassistant.data.AppDataRepository
+import com.lyihub.archiveassistant.domain.AiEnginePreset
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AppPane
 import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
@@ -39,6 +42,7 @@ import kotlinx.coroutines.launch
 fun ArchiveAssistantApp(
     stateStore: ArchiveAssistantStateStore? = null,
     aiSettingsRepository: AiEngineSettingsRepository? = null,
+    aiPresetRepository: AiEnginePresetRepository? = null,
     appDataRepository: AppDataRepository? = null,
 ) {
     val context = LocalContext.current
@@ -54,6 +58,15 @@ fun ArchiveAssistantApp(
         aiSettingsRepository?.let { repository ->
             coroutineScope.launch {
                 repository.save(settings)
+            }
+        }
+    }
+
+    val presets = aiPresetRepository?.presets?.collectAsState(initial = emptyList())?.value ?: emptyList()
+    val onPresetsChanged: (List<AiEnginePreset>) -> Unit = { updatedPresets ->
+        aiPresetRepository?.let { repository ->
+            coroutineScope.launch {
+                repository.save(updatedPresets)
             }
         }
     }
@@ -82,11 +95,15 @@ fun ArchiveAssistantApp(
                 stateStore = effectiveStateStore,
                 layoutInfo = layoutInfo,
                 onAiSettingsChanged = onAiSettingsChanged,
+                presets = presets,
+                onPresetsChanged = onPresetsChanged,
             )
         } else {
             SinglePaneLayout(
                 stateStore = effectiveStateStore,
                 onAiSettingsChanged = onAiSettingsChanged,
+                presets = presets,
+                onPresetsChanged = onPresetsChanged,
             )
         }
 
@@ -125,6 +142,8 @@ fun ArchiveAssistantApp(
 private fun SinglePaneLayout(
     stateStore: ArchiveAssistantStateStore,
     onAiSettingsChanged: (AiEngineSettings) -> Unit,
+    presets: List<AiEnginePreset>,
+    onPresetsChanged: (List<AiEnginePreset>) -> Unit,
 ) {
     val state = stateStore.state
 
@@ -190,6 +209,8 @@ private fun SinglePaneLayout(
                 aiSettings = state.aiSettings,
                 onAiSettingsChanged = onAiSettingsChanged,
                 onBack = stateStore::closePanes,
+                presets = presets,
+                onPresetsChanged = onPresetsChanged,
             )
 
         AppPane.MANAGE -> ManagePane(
@@ -275,6 +296,8 @@ private fun TwoPaneLayout(
     stateStore: ArchiveAssistantStateStore,
     layoutInfo: com.lyihub.archiveassistant.ui.layout.WindowLayoutInfo,
     onAiSettingsChanged: (AiEngineSettings) -> Unit,
+    presets: List<AiEnginePreset>,
+    onPresetsChanged: (List<AiEnginePreset>) -> Unit,
 ) {
     val state = stateStore.state
     val hingeBounds = layoutInfo.hingeBounds
@@ -351,6 +374,8 @@ private fun TwoPaneLayout(
                     aiSettings = state.aiSettings,
                     onAiSettingsChanged = onAiSettingsChanged,
                     onBack = stateStore::closePanes,
+                    presets = presets,
+                    onPresetsChanged = onPresetsChanged,
                 )
 
                 AppPane.TOPICS -> EmptyDetailPane()

@@ -11,6 +11,7 @@ object AiEngineSettingsPreferences {
     val BaseUrlKey = stringPreferencesKey("ai_base_url")
     val ModelNameKey = stringPreferencesKey("ai_model_name")
     val ApiKeyAliasKey = stringPreferencesKey("ai_api_key_alias")
+    val ApiKeyKey = stringPreferencesKey("ai_api_key")
     val LocalEndpointKey = stringPreferencesKey("ai_local_endpoint")
 
     fun decode(preferences: Preferences): AiEngineSettings {
@@ -20,6 +21,7 @@ object AiEngineSettingsPreferences {
             baseUrl = preferences[BaseUrlKey] ?: defaults.baseUrl,
             modelName = preferences[ModelNameKey] ?: defaults.modelName,
             apiKeyAlias = preferences[ApiKeyAliasKey] ?: defaults.apiKeyAlias,
+            apiKey = preferences[ApiKeyKey] ?: defaults.apiKey,
             localEndpoint = preferences[LocalEndpointKey] ?: defaults.localEndpoint,
         )
     }
@@ -29,6 +31,7 @@ object AiEngineSettingsPreferences {
         preferences[BaseUrlKey] = settings.baseUrl
         preferences[ModelNameKey] = settings.modelName
         preferences[ApiKeyAliasKey] = settings.apiKeyAlias
+        preferences[ApiKeyKey] = settings.apiKey
         preferences[LocalEndpointKey] = settings.localEndpoint
     }
 

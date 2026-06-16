@@ -313,7 +313,7 @@ class ArchiveAssistantStateStoreTest {
     @Test
     fun updateAiSettings_switchesEngineTypeAndUpdatesFields() {
         val store = ArchiveAssistantStateStore()
-        assertEquals(AiEngineType.CLOUD_API, store.state.aiSettings.engineType)
+        assertEquals(AiEngineType.OPENAI_COMPATIBLE, store.state.aiSettings.engineType)
 
         val localSettings = AiEngineSettings(
             engineType = AiEngineType.LOCAL_MODEL,

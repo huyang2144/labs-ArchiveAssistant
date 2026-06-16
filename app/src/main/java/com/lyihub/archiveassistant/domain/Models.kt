@@ -39,16 +39,29 @@ enum class DocumentFormat(val label: String, val extension: String) {
 }
 
 enum class AiEngineType {
-    CLOUD_API,
+    OPENAI_COMPATIBLE,
+    OPENAI_RESPONSES,
+    ANTHROPIC,
+    GEMINI,
     LOCAL_MODEL,
 }
 
 data class AiEngineSettings(
-    val engineType: AiEngineType = AiEngineType.CLOUD_API,
+    val engineType: AiEngineType = AiEngineType.OPENAI_COMPATIBLE,
     val baseUrl: String = "https://api.example.com/v1",
     val modelName: String = "mock-knowledge-classifier",
     val apiKeyAlias: String = "default",
+    val apiKey: String = "",
     val localEndpoint: String = "http://127.0.0.1:11434",
+)
+
+data class AiEnginePreset(
+    val name: String,
+    val engineType: AiEngineType = AiEngineType.OPENAI_COMPATIBLE,
+    val baseUrl: String = "",
+    val modelName: String = "",
+    val apiKey: String = "",
+    val localEndpoint: String = "",
 )
 
 enum class AppPane {

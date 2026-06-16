@@ -48,7 +48,7 @@ class AiEngineSettingsPreferencesTest {
 
         val settings = AiEngineSettingsPreferences.decode(preferences)
 
-        assertEquals(AiEngineType.CLOUD_API, settings.engineType)
+        assertEquals(AiEngineType.OPENAI_COMPATIBLE, settings.engineType)
     }
 
     @Test
