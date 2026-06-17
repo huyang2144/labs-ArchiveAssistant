@@ -177,6 +177,7 @@ class ArchiveAssistantStateStore(
         state = state.copy(
             addItemDialogVisible = true,
             addItemDialogValidationMessage = null,
+            addItemDialogPrefill = null,
         )
     }
 
@@ -184,10 +185,12 @@ class ArchiveAssistantStateStore(
         state = state.copy(
             addItemDialogVisible = false,
             addItemDialogValidationMessage = null,
+            addItemDialogPrefill = null,
         )
     }
 
     fun confirmAddItem(
+        topicId: String,
         title: String,
         contentType: ContentType,
         sourceUrl: String?,
@@ -201,6 +204,7 @@ class ArchiveAssistantStateStore(
         val normalizedSourceUrl = sourceUrl?.trim()?.takeIf { it.isNotBlank() }
 
         val validationMessage = when {
+            state.topics.none { it.id == topicId } -> "请选择归属主题"
             normalizedTitle.isBlank() -> "请输入资料标题"
             contentType == ContentType.WEB_ARTICLE && normalizedSourceUrl == null -> "请输入链接"
             (contentType == ContentType.IMAGE_SCREENSHOT || contentType == ContentType.DOCUMENT)
@@ -213,7 +217,6 @@ class ArchiveAssistantStateStore(
             return
         }
 
-        val topicId = state.selectedTopicId ?: return
         val itemIndex = nextItemIndex++
         val now = System.currentTimeMillis()
         val finalSummary = if (useAiSummary) "" else normalizedSummary
@@ -235,8 +238,12 @@ class ArchiveAssistantStateStore(
             topics = state.topics.map { topic ->
                 if (topic.id == topicId) topic.copy(updatedAtEpochMillis = now) else topic
             },
+            selectedPane = AppPane.DETAIL,
+            selectedTopicId = topicId,
+            activeDetailFilter = ContentType.ALL,
             addItemDialogVisible = false,
             addItemDialogValidationMessage = null,
+            addItemDialogPrefill = null,
         )
         saveData()
     }
@@ -461,19 +468,69 @@ class ArchiveAssistantStateStore(
         )
     }
 
-    fun showClipboard(content: String, imageUri: String? = null) {
+    fun showClipboard(
+        content: String,
+        imageUri: String? = null,
+        sourceUri: String? = imageUri,
+        sourceContentType: ContentType? = if (imageUri != null) ContentType.IMAGE_SCREENSHOT else null,
+        sourceDocumentFormat: DocumentFormat? = null,
+        sourceFileName: String? = null,
+    ) {
+        val normalizedContent = content.trim().takeIf { it.isNotBlank() }
+        val normalizedImageUri = imageUri?.trim()?.takeIf { it.isNotBlank() }
+        val normalizedSourceUri = sourceUri?.trim()?.takeIf { it.isNotBlank() }
+        val normalizedFileName = sourceFileName?.trim()?.takeIf { it.isNotBlank() }
+        if (normalizedContent == null && normalizedImageUri == null && normalizedSourceUri == null) return
+
+        val snapshot = ClipboardSnapshot(
+            content = normalizedContent,
+            imageUri = normalizedImageUri,
+            sourceUri = normalizedSourceUri,
+            sourceContentType = sourceContentType,
+            sourceDocumentFormat = sourceDocumentFormat,
+            sourceFileName = normalizedFileName,
+        )
+        if (snapshot == state.ignoredClipboardSnapshot) {
+            state = state.copy(latestClipboardSnapshot = snapshot)
+            return
+        }
+
         state = state.copy(
-            clipboardContent = content.ifBlank { null },
-            clipboardImageUri = imageUri,
+            clipboardContent = normalizedContent,
+            clipboardImageUri = normalizedImageUri,
+            clipboardSourceUri = normalizedSourceUri,
+            clipboardSourceContentType = sourceContentType,
+            clipboardSourceDocumentFormat = sourceDocumentFormat,
+            clipboardSourceFileName = normalizedFileName,
+            latestClipboardSnapshot = snapshot,
             showClipboardDialog = true,
         )
     }
 
     fun dismissClipboardDialog() {
+        val ignoredSnapshot = currentClipboardSnapshot()
         state = state.copy(
             clipboardContent = null,
             clipboardImageUri = null,
+            clipboardSourceUri = null,
+            clipboardSourceContentType = null,
+            clipboardSourceDocumentFormat = null,
+            clipboardSourceFileName = null,
+            ignoredClipboardSnapshot = ignoredSnapshot ?: state.ignoredClipboardSnapshot,
             showClipboardDialog = false,
+        )
+    }
+
+    fun openLatestClipboardDialog() {
+        val snapshot = state.latestClipboardSnapshot ?: return
+        state = state.copy(
+            clipboardContent = snapshot.content,
+            clipboardImageUri = snapshot.imageUri,
+            clipboardSourceUri = snapshot.sourceUri,
+            clipboardSourceContentType = snapshot.sourceContentType,
+            clipboardSourceDocumentFormat = snapshot.sourceDocumentFormat,
+            clipboardSourceFileName = snapshot.sourceFileName,
+            showClipboardDialog = true,
         )
     }
 
@@ -482,9 +539,40 @@ class ArchiveAssistantStateStore(
         state = state.copy(
             parserInput = content,
             clipboardContent = null,
+            clipboardImageUri = null,
+            clipboardSourceUri = null,
+            clipboardSourceContentType = null,
+            clipboardSourceDocumentFormat = null,
+            clipboardSourceFileName = null,
+            ignoredClipboardSnapshot = null,
             showClipboardDialog = false,
         )
         submitParserInput()
+    }
+
+    fun acceptClipboardAndManualCreate() {
+        val targetTopicId = state.selectedTopicId
+            ?.takeIf { selectedTopicId -> state.topics.any { it.id == selectedTopicId } }
+            ?: state.recentTopics.firstOrNull()?.id
+            ?: return
+        val prefill = clipboardAddItemPrefill()
+        state = state.copy(
+            clipboardContent = null,
+            clipboardImageUri = null,
+            clipboardSourceUri = null,
+            clipboardSourceContentType = null,
+            clipboardSourceDocumentFormat = null,
+            clipboardSourceFileName = null,
+            ignoredClipboardSnapshot = null,
+            showClipboardDialog = false,
+            selectedPane = AppPane.DETAIL,
+            selectedTopicId = targetTopicId,
+            activeDetailFilter = ContentType.ALL,
+            modalItem = null,
+            addItemDialogVisible = true,
+            addItemDialogValidationMessage = null,
+            addItemDialogPrefill = prefill,
+        )
     }
 
     fun updateAiSettings(settings: AiEngineSettings) {
@@ -502,5 +590,55 @@ class ArchiveAssistantStateStore(
         return lineSequence()
             .flatMap { it.splitToSequence(' ', '\t', '\n') }
             .firstOrNull { it.startsWith("http://") || it.startsWith("https://") || it.startsWith("www.") }
+    }
+
+    private fun String.isBareWebUrl(): Boolean {
+        val trimmed = trim()
+        return trimmed.isNotBlank() &&
+            !trimmed.any(Char::isWhitespace) &&
+            (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("www."))
+    }
+
+    private fun currentClipboardSnapshot(): ClipboardSnapshot? {
+        return ClipboardSnapshot(
+            content = state.clipboardContent,
+            imageUri = state.clipboardImageUri,
+            sourceUri = state.clipboardSourceUri,
+            sourceContentType = state.clipboardSourceContentType,
+            sourceDocumentFormat = state.clipboardSourceDocumentFormat,
+            sourceFileName = state.clipboardSourceFileName,
+        ).takeIf { it.content != null || it.imageUri != null || it.sourceUri != null }
+    }
+
+    private fun clipboardAddItemPrefill(): AddItemDialogPrefill {
+        val content = state.clipboardContent.orEmpty()
+        val sourceUri = state.clipboardSourceUri
+        val sourceContentType = state.clipboardSourceContentType
+        if (sourceUri != null && sourceContentType != null) {
+            val isMixedImageText = content.isNotBlank() && sourceContentType == ContentType.IMAGE_SCREENSHOT
+            return AddItemDialogPrefill(
+                title = content.ifBlank { state.clipboardSourceFileName.orEmpty() },
+                contentType = if (isMixedImageText) ContentType.DOCUMENT else sourceContentType,
+                sourceUrl = if (isMixedImageText) null else sourceUri,
+                documentFormat = if (isMixedImageText) DocumentFormat.MARKDOWN else state.clipboardSourceDocumentFormat,
+                fileName = state.clipboardSourceFileName,
+                lockContentType = true,
+                availableContentTypes = if (isMixedImageText) listOf(ContentType.DOCUMENT) else null,
+            )
+        }
+
+        val sourceUrl = content.takeIf { it.isBareWebUrl() }
+        return AddItemDialogPrefill(
+            contentType = if (sourceUrl != null) ContentType.WEB_ARTICLE else ContentType.DOCUMENT,
+            sourceUrl = sourceUrl,
+            documentFormat = if (sourceUrl == null) DocumentFormat.MARKDOWN else null,
+            lockContentType = sourceUrl == null,
+            availableContentTypes = if (sourceUrl != null) {
+                listOf(ContentType.WEB_ARTICLE, ContentType.DOCUMENT)
+            } else {
+                listOf(ContentType.DOCUMENT)
+            },
+            textContent = content,
+        )
     }
 }

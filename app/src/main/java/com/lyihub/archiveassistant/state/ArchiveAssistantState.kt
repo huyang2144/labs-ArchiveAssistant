@@ -3,6 +3,7 @@ package com.lyihub.archiveassistant.state
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AppPane
 import com.lyihub.archiveassistant.domain.ContentType
+import com.lyihub.archiveassistant.domain.DocumentFormat
 import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.domain.Topic
 
@@ -10,6 +11,26 @@ enum class TopicNameDialogMode {
     CREATE,
     RENAME,
 }
+
+data class AddItemDialogPrefill(
+    val title: String = "",
+    val contentType: ContentType = ContentType.WEB_ARTICLE,
+    val sourceUrl: String? = null,
+    val documentFormat: DocumentFormat? = null,
+    val fileName: String? = null,
+    val lockContentType: Boolean = false,
+    val availableContentTypes: List<ContentType>? = null,
+    val textContent: String? = null,
+)
+
+data class ClipboardSnapshot(
+    val content: String? = null,
+    val imageUri: String? = null,
+    val sourceUri: String? = null,
+    val sourceContentType: ContentType? = null,
+    val sourceDocumentFormat: DocumentFormat? = null,
+    val sourceFileName: String? = null,
+)
 
 data class ArchiveAssistantState(
     val selectedPane: AppPane = AppPane.TOPICS,
@@ -27,6 +48,7 @@ data class ArchiveAssistantState(
     val deleteConfirmTopicId: String? = null,
     val addItemDialogVisible: Boolean = false,
     val addItemDialogValidationMessage: String? = null,
+    val addItemDialogPrefill: AddItemDialogPrefill? = null,
     val editingItem: KnowledgeItem? = null,
     val editItemDialogValidationMessage: String? = null,
     val deleteConfirmItemId: String? = null,
@@ -34,6 +56,12 @@ data class ArchiveAssistantState(
     val clipboardContent: String? = null,
     val showClipboardDialog: Boolean = false,
     val clipboardImageUri: String? = null,
+    val clipboardSourceUri: String? = null,
+    val clipboardSourceContentType: ContentType? = null,
+    val clipboardSourceDocumentFormat: DocumentFormat? = null,
+    val clipboardSourceFileName: String? = null,
+    val latestClipboardSnapshot: ClipboardSnapshot? = null,
+    val ignoredClipboardSnapshot: ClipboardSnapshot? = null,
 ) {
     val itemsByTopic: Map<String, List<KnowledgeItem>> = items.groupBy { it.topicId }
 

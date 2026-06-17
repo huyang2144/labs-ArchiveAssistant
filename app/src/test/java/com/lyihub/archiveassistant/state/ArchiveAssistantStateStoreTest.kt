@@ -4,6 +4,7 @@ import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
 import com.lyihub.archiveassistant.domain.AppPane
 import com.lyihub.archiveassistant.domain.ContentType
+import com.lyihub.archiveassistant.domain.DocumentFormat
 import com.lyihub.archiveassistant.domain.SampleKnowledgeData
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -114,6 +115,192 @@ class ArchiveAssistantStateStoreTest {
         assertEquals("   ", store.state.parserInput)
         assertEquals("请输入要归档的内容", store.state.parserValidationMessage)
         assertEquals(SampleKnowledgeData.items, store.state.items)
+    }
+
+    @Test
+    fun showClipboard_whenPayloadIsBlank_doesNotOpenClipboardDialog() {
+        val store = ArchiveAssistantStateStore()
+
+        store.showClipboard("   ", "   ")
+
+        assertFalse(store.state.showClipboardDialog)
+        assertNull(store.state.clipboardContent)
+        assertNull(store.state.clipboardImageUri)
+        assertNull(store.state.latestClipboardSnapshot)
+    }
+
+    @Test
+    fun showClipboard_whenDismissedSamePayload_doesNotOpenAgainButCanBeReopened() {
+        val store = ArchiveAssistantStateStore()
+
+        store.showClipboard("Clipboard note")
+        store.dismissClipboardDialog()
+        store.showClipboard("Clipboard note")
+
+        assertFalse(store.state.showClipboardDialog)
+        assertNull(store.state.clipboardContent)
+        assertEquals("Clipboard note", store.state.latestClipboardSnapshot?.content)
+
+        store.openLatestClipboardDialog()
+
+        assertTrue(store.state.showClipboardDialog)
+        assertEquals("Clipboard note", store.state.clipboardContent)
+    }
+
+    @Test
+    fun showClipboard_whenDismissedPayloadChanges_opensAgain() {
+        val store = ArchiveAssistantStateStore()
+
+        store.showClipboard("First note")
+        store.dismissClipboardDialog()
+        store.showClipboard("Second note")
+
+        assertTrue(store.state.showClipboardDialog)
+        assertEquals("Second note", store.state.clipboardContent)
+    }
+
+    @Test
+    fun openLatestClipboardDialog_whenNoClipboardSeen_doesNothing() {
+        val store = ArchiveAssistantStateStore()
+
+        store.openLatestClipboardDialog()
+
+        assertFalse(store.state.showClipboardDialog)
+        assertNull(store.state.clipboardContent)
+    }
+
+    @Test
+    fun acceptClipboardAndManualCreate_whenWebClipboard_opensAddItemDialogWithWebPrefill() {
+        val store = ArchiveAssistantStateStore()
+        store.openTopic(SampleKnowledgeData.DefaultTopicId)
+
+        store.showClipboard("https://example.com/article")
+        store.acceptClipboardAndManualCreate()
+
+        assertFalse(store.state.showClipboardDialog)
+        assertNull(store.state.clipboardContent)
+        assertEquals(AppPane.DETAIL, store.state.selectedPane)
+        assertEquals(SampleKnowledgeData.DefaultTopicId, store.state.selectedTopicId)
+        assertTrue(store.state.addItemDialogVisible)
+        assertEquals("", store.state.addItemDialogPrefill?.title)
+        assertEquals(ContentType.WEB_ARTICLE, store.state.addItemDialogPrefill?.contentType)
+        assertEquals("https://example.com/article", store.state.addItemDialogPrefill?.sourceUrl)
+        assertFalse(store.state.addItemDialogPrefill?.lockContentType ?: true)
+        assertEquals("https://example.com/article", store.state.addItemDialogPrefill?.textContent)
+        assertEquals(
+            listOf(ContentType.WEB_ARTICLE, ContentType.DOCUMENT),
+            store.state.addItemDialogPrefill?.availableContentTypes,
+        )
+    }
+
+    @Test
+    fun acceptClipboardAndManualCreate_whenTextClipboard_prefillsDocumentTextContent() {
+        val store = ArchiveAssistantStateStore()
+
+        store.showClipboard("Plain clipboard note")
+        store.acceptClipboardAndManualCreate()
+
+        assertEquals("", store.state.addItemDialogPrefill?.title)
+        assertEquals(ContentType.DOCUMENT, store.state.addItemDialogPrefill?.contentType)
+        assertEquals(DocumentFormat.MARKDOWN, store.state.addItemDialogPrefill?.documentFormat)
+        assertEquals("Plain clipboard note", store.state.addItemDialogPrefill?.textContent)
+        assertTrue(store.state.addItemDialogPrefill?.lockContentType ?: false)
+        assertEquals(
+            listOf(ContentType.DOCUMENT),
+            store.state.addItemDialogPrefill?.availableContentTypes,
+        )
+    }
+
+    @Test
+    fun acceptClipboardAndManualCreate_whenTextContainsUrl_prefillsDocumentTextContent() {
+        val store = ArchiveAssistantStateStore()
+
+        store.showClipboard("Read this https://example.com/article")
+        store.acceptClipboardAndManualCreate()
+
+        assertEquals(ContentType.DOCUMENT, store.state.addItemDialogPrefill?.contentType)
+        assertNull(store.state.addItemDialogPrefill?.sourceUrl)
+        assertEquals("Read this https://example.com/article", store.state.addItemDialogPrefill?.textContent)
+    }
+
+    @Test
+    fun acceptClipboardAndManualCreate_whenImageOnlyClipboard_opensAddItemDialogWithImagePrefill() {
+        val store = ArchiveAssistantStateStore()
+
+        store.showClipboard("", "content://clipboard/image")
+        store.acceptClipboardAndManualCreate()
+
+        assertFalse(store.state.showClipboardDialog)
+        assertNull(store.state.clipboardImageUri)
+        assertEquals(AppPane.DETAIL, store.state.selectedPane)
+        assertEquals(store.state.recentTopics.first().id, store.state.selectedTopicId)
+        assertTrue(store.state.addItemDialogVisible)
+        assertEquals(ContentType.IMAGE_SCREENSHOT, store.state.addItemDialogPrefill?.contentType)
+        assertEquals("content://clipboard/image", store.state.addItemDialogPrefill?.sourceUrl)
+        assertTrue(store.state.addItemDialogPrefill?.lockContentType ?: false)
+        assertNull(store.state.addItemDialogPrefill?.availableContentTypes)
+    }
+
+    @Test
+    fun acceptClipboardAndManualCreate_whenMixedImageTextClipboard_locksPrefillToDocument() {
+        val store = ArchiveAssistantStateStore()
+
+        store.showClipboard("Caption and notes", "content://clipboard/image")
+        store.acceptClipboardAndManualCreate()
+
+        assertTrue(store.state.addItemDialogVisible)
+        assertEquals(ContentType.DOCUMENT, store.state.addItemDialogPrefill?.contentType)
+        assertEquals("Caption and notes", store.state.addItemDialogPrefill?.title)
+        assertNull(store.state.addItemDialogPrefill?.sourceUrl)
+        assertEquals(DocumentFormat.MARKDOWN, store.state.addItemDialogPrefill?.documentFormat)
+        assertTrue(store.state.addItemDialogPrefill?.lockContentType ?: false)
+        assertEquals(
+            listOf(ContentType.DOCUMENT),
+            store.state.addItemDialogPrefill?.availableContentTypes,
+        )
+    }
+
+    @Test
+    fun acceptClipboardAndManualCreate_whenDocumentClipboard_opensAddItemDialogWithDocumentPrefill() {
+        val store = ArchiveAssistantStateStore()
+
+        store.showClipboard(
+            content = "paper.pdf",
+            sourceUri = "content://clipboard/document",
+            sourceContentType = ContentType.DOCUMENT,
+            sourceDocumentFormat = DocumentFormat.PDF,
+            sourceFileName = "paper.pdf",
+        )
+        store.acceptClipboardAndManualCreate()
+
+        assertFalse(store.state.showClipboardDialog)
+        assertNull(store.state.clipboardSourceUri)
+        assertTrue(store.state.addItemDialogVisible)
+        assertEquals(ContentType.DOCUMENT, store.state.addItemDialogPrefill?.contentType)
+        assertEquals("content://clipboard/document", store.state.addItemDialogPrefill?.sourceUrl)
+        assertEquals(DocumentFormat.PDF, store.state.addItemDialogPrefill?.documentFormat)
+        assertEquals("paper.pdf", store.state.addItemDialogPrefill?.fileName)
+        assertTrue(store.state.addItemDialogPrefill?.lockContentType ?: false)
+    }
+
+    @Test
+    fun confirmAddItem_usesDialogSelectedTopic() {
+        val store = ArchiveAssistantStateStore()
+        val targetTopicId = store.state.topics.first { it.id != SampleKnowledgeData.DefaultTopicId }.id
+        store.openTopic(SampleKnowledgeData.DefaultTopicId)
+
+        store.confirmAddItem(
+            topicId = targetTopicId,
+            title = "Selected topic item",
+            contentType = ContentType.WEB_ARTICLE,
+            sourceUrl = "https://example.com/selected-topic",
+            summary = "",
+            useAiSummary = true,
+        )
+
+        val newItem = store.state.items.last()
+        assertEquals(targetTopicId, newItem.topicId)
+        assertEquals(targetTopicId, store.state.selectedTopicId)
     }
 
     @Test

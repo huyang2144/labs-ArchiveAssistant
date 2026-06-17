@@ -1,6 +1,7 @@
 package com.lyihub.archiveassistant.ui.screens
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.util.Log
@@ -34,10 +35,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -64,6 +69,7 @@ import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
 import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.domain.Topic
+import com.lyihub.archiveassistant.state.AddItemDialogPrefill
 import com.lyihub.archiveassistant.ui.components.ActionButton
 import com.lyihub.archiveassistant.ui.components.PaneContainer
 import com.lyihub.archiveassistant.ui.components.PaneContentPadding
@@ -107,6 +113,29 @@ private fun uniqueImportFile(itemsDir: File, fileName: String): File {
         val candidate = File(itemsDir, "$baseName ($suffix)$extension")
         if (!candidate.exists()) return candidate
         suffix += 1
+    }
+}
+
+private fun markdownFileName(title: String): String {
+    val baseName = title
+        .lineSequence()
+        .firstOrNull()
+        .orEmpty()
+        .trim()
+        .take(48)
+        .replace(Regex("[\\\\/:*?\"<>|]+"), "-")
+        .ifBlank { "clipboard-note" }
+    return if (baseName.endsWith(".md", ignoreCase = true)) baseName else "$baseName.md"
+}
+
+private fun writeMarkdownPrefillFile(context: Context, title: String, content: String): File? {
+    return try {
+        val itemsDir = File(context.filesDir, "items").also { it.mkdirs() }
+        val dest = uniqueImportFile(itemsDir, markdownFileName(title))
+        dest.writeText(content)
+        dest
+    } catch (_: Exception) {
+        null
     }
 }
 
@@ -213,6 +242,7 @@ fun DetailPane(
 private fun FilterChip(
     label: String,
     selected: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     val bgColor = if (selected) {
@@ -228,7 +258,7 @@ private fun FilterChip(
     Surface(
         color = bgColor,
         shape = MaterialTheme.shapes.small,
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
     ) {
         Text(
             text = label,
@@ -328,31 +358,66 @@ private fun KnowledgeItemRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddItemDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, ContentType, String?, String, Boolean, DocumentFormat?, String?) -> Unit,
+    onConfirm: (String, String, ContentType, String?, String, Boolean, DocumentFormat?, String?) -> Unit,
     validationMessage: String?,
     initialItem: KnowledgeItem? = null,
+    prefill: AddItemDialogPrefill? = null,
+    topics: List<Topic> = emptyList(),
+    initialTopicId: String? = null,
 ) {
     val isEditMode = initialItem != null
-    var title by remember(initialItem) { mutableStateOf(initialItem?.title ?: "") }
-    var selectedContentType by remember(initialItem) { mutableStateOf(initialItem?.contentType ?: ContentType.WEB_ARTICLE) }
-    var url by remember(initialItem) {
+    val effectivePrefill = prefill?.takeIf { initialItem == null }
+    val lockContentType = effectivePrefill?.lockContentType == true
+    val hideSourceFilePicker = effectivePrefill != null
+    val availableContentTypes = effectivePrefill?.availableContentTypes
+        ?: listOf(ContentType.WEB_ARTICLE, ContentType.IMAGE_SCREENSHOT, ContentType.DOCUMENT)
+    var topicMenuExpanded by remember { mutableStateOf(false) }
+    var selectedDialogTopicId by remember(initialItem, initialTopicId, topics) {
         mutableStateOf(
-            if (initialItem?.contentType == ContentType.WEB_ARTICLE) initialItem.sourceUrl ?: "" else ""
+            when {
+                initialItem != null -> initialItem.topicId
+                initialTopicId != null && topics.any { it.id == initialTopicId } -> initialTopicId
+                else -> topics.firstOrNull()?.id.orEmpty()
+            }
         )
     }
-    var selectedFileUri by remember(initialItem) {
+    val selectedDialogTopic = topics.firstOrNull { it.id == selectedDialogTopicId }
+    var title by remember(initialItem, effectivePrefill) { mutableStateOf(initialItem?.title ?: effectivePrefill?.title ?: "") }
+    var selectedContentType by remember(initialItem, effectivePrefill) {
+        mutableStateOf(initialItem?.contentType ?: effectivePrefill?.contentType ?: ContentType.WEB_ARTICLE)
+    }
+    var url by remember(initialItem, effectivePrefill) {
         mutableStateOf(
-            if (initialItem != null && initialItem.contentType != ContentType.WEB_ARTICLE && initialItem.sourceUrl != null)
-                Uri.parse(initialItem.sourceUrl) else null
+            when {
+                initialItem?.contentType == ContentType.WEB_ARTICLE -> initialItem.sourceUrl ?: ""
+                effectivePrefill?.contentType == ContentType.WEB_ARTICLE -> effectivePrefill.sourceUrl ?: ""
+                else -> ""
+            }
+        )
+    }
+    var textContent by remember(effectivePrefill) { mutableStateOf(effectivePrefill?.textContent.orEmpty()) }
+    var selectedFileUri by remember(initialItem, effectivePrefill) {
+        mutableStateOf(
+            when {
+                initialItem != null && initialItem.contentType != ContentType.WEB_ARTICLE && initialItem.sourceUrl != null ->
+                    Uri.parse(initialItem.sourceUrl)
+                effectivePrefill != null && effectivePrefill.contentType != ContentType.WEB_ARTICLE && effectivePrefill.sourceUrl != null ->
+                    Uri.parse(effectivePrefill.sourceUrl)
+                else -> null
+            }
         )
     }
     var summary by remember(initialItem) { mutableStateOf(initialItem?.summary ?: "") }
-    var useAiSummary by remember(initialItem) { mutableStateOf(initialItem?.summary.isNullOrBlank() == true) }
-    var selectedDocumentFormat by remember(initialItem) { mutableStateOf(initialItem?.documentFormat) }
-    var selectedFileName by remember(initialItem) { mutableStateOf(initialItem?.fileName) }
+    var selectedDocumentFormat by remember(initialItem, effectivePrefill) {
+        mutableStateOf(initialItem?.documentFormat ?: effectivePrefill?.documentFormat)
+    }
+    var selectedFileName by remember(initialItem, effectivePrefill) {
+        mutableStateOf(initialItem?.fileName ?: effectivePrefill?.fileName)
+    }
     var selectedImageBitmap by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     var selectedLocalFilePath by remember(initialItem) {
         mutableStateOf(
@@ -426,12 +491,26 @@ fun AddItemDialog(
     }
 
     fun selectType(type: ContentType) {
+        if (lockContentType && type != selectedContentType) return
         selectedContentType = type
-        url = ""
+        url = if (type == ContentType.WEB_ARTICLE) {
+            url.ifBlank { effectivePrefill?.sourceUrl.orEmpty() }
+        } else if (effectivePrefill?.sourceUrl != null) {
+            url
+        } else {
+            ""
+        }
         selectedFileUri = null
         selectedLocalFilePath = null
         selectedDocumentFormat = null
         selectedFileName = null
+        if (
+            type == ContentType.DOCUMENT &&
+            (effectivePrefill?.title?.isNotBlank() == true || textContent.isNotBlank())
+        ) {
+            selectedDocumentFormat = DocumentFormat.MARKDOWN
+            selectedFileName = markdownFileName(title)
+        }
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -472,12 +551,65 @@ fun AddItemDialog(
                     }
                 }
 
+                if (!isEditMode) {
+                    ExposedDropdownMenuBox(
+                        expanded = topicMenuExpanded,
+                        onExpandedChange = { topicMenuExpanded = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("add-item-topic-selector"),
+                    ) {
+                        OutlinedTextField(
+                            value = selectedDialogTopic?.title ?: "选择主题",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("归属主题") },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(
+                                    expanded = topicMenuExpanded,
+                                )
+                            },
+                            modifier = Modifier
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth(),
+                        )
+                        ExposedDropdownMenu(
+                            expanded = topicMenuExpanded,
+                            onDismissRequest = { topicMenuExpanded = false },
+                        ) {
+                            topics.forEach { topic ->
+                                DropdownMenuItem(
+                                    text = { Text(topic.title) },
+                                    onClick = {
+                                        selectedDialogTopicId = topic.id
+                                        topicMenuExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
                     modifier = Modifier.fillMaxWidth().testTag("add-item-title"),
                     label = { Text("标题") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                )
+
+                OutlinedTextField(
+                    value = summary,
+                    onValueChange = { summary = it },
+                    modifier = Modifier.fillMaxWidth().testTag("add-item-summary"),
+                    label = { Text("摘要（选填）") },
+                    minLines = 3,
+                    maxLines = 6,
                     shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -493,10 +625,11 @@ fun AddItemDialog(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    listOf(ContentType.WEB_ARTICLE, ContentType.IMAGE_SCREENSHOT, ContentType.DOCUMENT).forEach { type ->
+                    availableContentTypes.forEach { type ->
                         FilterChip(
                             label = type.label,
                             selected = selectedContentType == type,
+                            enabled = !lockContentType,
                             onClick = { selectType(type) },
                         )
                     }
@@ -531,11 +664,13 @@ fun AddItemDialog(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                         }
-                        ActionButton(
-                            label = "选择图像文件",
-                            onClick = { filePickerLauncher.launch("image/*") },
-                            testTag = "add-item-pick-image",
-                        )
+                        if (!hideSourceFilePicker) {
+                            ActionButton(
+                                label = "选择图像文件",
+                                onClick = { filePickerLauncher.launch("image/*") },
+                                testTag = "add-item-pick-image",
+                            )
+                        }
                         selectedFileUri?.let { uri ->
                             Text(
                                 text = "已选择: ${selectedFileName ?: displayNameFor(uri)}",
@@ -546,16 +681,33 @@ fun AddItemDialog(
                     }
 
                     ContentType.DOCUMENT -> {
-                        ActionButton(
-                            label = "选择文档",
-                            onClick = { filePickerLauncher.launch("*/*") },
-                            testTag = "add-item-pick-document",
-                        )
+                        if (!hideSourceFilePicker) {
+                            ActionButton(
+                                label = "选择文档",
+                                onClick = { filePickerLauncher.launch("*/*") },
+                                testTag = "add-item-pick-document",
+                            )
+                        }
                         selectedFileUri?.let { uri ->
                             Text(
                                 text = "已选择: ${selectedFileName ?: displayNameFor(uri)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (effectivePrefill?.textContent != null) {
+                            OutlinedTextField(
+                                value = textContent,
+                                onValueChange = { textContent = it },
+                                modifier = Modifier.fillMaxWidth().testTag("add-item-text-content"),
+                                label = { Text("文本内容") },
+                                minLines = 3,
+                                maxLines = 8,
+                                shape = MaterialTheme.shapes.medium,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                ),
                             )
                         }
                         if (selectedDocumentFormat != null) {
@@ -584,39 +736,6 @@ fun AddItemDialog(
                     else -> {}
                 }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { useAiSummary = !useAiSummary },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = useAiSummary,
-                        onCheckedChange = { useAiSummary = it },
-                    )
-                    Text(
-                        text = "AI总结",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-
-                if (!useAiSummary) {
-                    OutlinedTextField(
-                        value = summary,
-                        onValueChange = { summary = it },
-                        modifier = Modifier.fillMaxWidth().testTag("add-item-summary"),
-                        label = { Text("摘要（选填）") },
-                        minLines = 3,
-                        maxLines = 6,
-                        shape = MaterialTheme.shapes.medium,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                    )
-                }
-
                 if (validationMessage != null) {
                     Text(
                         text = validationMessage,
@@ -637,14 +756,28 @@ fun AddItemDialog(
                     ActionButton(
                         label = if (isEditMode) "保存" else "确认",
                         onClick = {
+                            val textDocumentContent = textContent.takeIf { it.isNotBlank() } ?: effectivePrefill
+                                ?.takeIf { it.sourceUrl == null && it.title.isNotBlank() }
+                                ?.title
+                            val textDocumentFile = if (
+                                selectedContentType == ContentType.DOCUMENT &&
+                                selectedFileUri == null &&
+                                textDocumentContent != null
+                            ) {
+                                writeMarkdownPrefillFile(context, title, textDocumentContent)
+                            } else {
+                                null
+                            }
                             val sourceUrl = when (selectedContentType) {
                                 ContentType.WEB_ARTICLE -> url.takeIf { it.isNotBlank() }
-                                else -> selectedLocalFilePath
+                                else -> textDocumentFile?.absolutePath ?: selectedLocalFilePath
                             }
                             val docFormat = if (selectedContentType == ContentType.DOCUMENT) {
-                                selectedDocumentFormat ?: DocumentFormat.UNKNOWN
+                                if (textDocumentFile != null) DocumentFormat.MARKDOWN else selectedDocumentFormat ?: DocumentFormat.UNKNOWN
                             } else null
-                            onConfirm(title, selectedContentType, sourceUrl, summary, useAiSummary, docFormat, selectedFileName)
+                            val fileName = if (textDocumentFile != null) textDocumentFile.name else selectedFileName
+                            val topicId = if (isEditMode) initialItem?.topicId.orEmpty() else selectedDialogTopicId
+                            onConfirm(topicId, title, selectedContentType, sourceUrl, summary, false, docFormat, fileName)
                         },
                         testTag = "add-item-confirm",
                     )
@@ -863,6 +996,7 @@ fun ClipboardDialog(
     content: String,
     imageUri: String? = null,
     onSummarize: () -> Unit,
+    onManualCreate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -918,13 +1052,16 @@ fun ClipboardDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onSummarize) {
-                Text("智能归纳")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("忽略")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onDismiss) {
+                    Text("忽略")
+                }
+                TextButton(onClick = onManualCreate) {
+                    Text("手动归纳")
+                }
+                TextButton(onClick = onSummarize) {
+                    Text("智能归纳")
+                }
             }
         },
     )

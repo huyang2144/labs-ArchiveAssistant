@@ -1,7 +1,9 @@
 package com.lyihub.archiveassistant.app
 
 import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Context
+import android.provider.OpenableColumns
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -32,6 +34,8 @@ import com.lyihub.archiveassistant.data.AppDataRepository
 import com.lyihub.archiveassistant.domain.AiEnginePreset
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AppPane
+import com.lyihub.archiveassistant.domain.ContentType
+import com.lyihub.archiveassistant.domain.DocumentFormat
 import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
 import com.lyihub.archiveassistant.ui.layout.LayoutMode
 import com.lyihub.archiveassistant.ui.layout.rememberWindowLayoutInfo
@@ -93,7 +97,14 @@ fun ArchiveAssistantApp(
                 pendingRead = Runnable {
                     if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                         readClipboardPayload(context)?.let { payload ->
-                            effectiveStateStore.showClipboard(payload.text.orEmpty(), payload.imageUri)
+                            effectiveStateStore.showClipboard(
+                                content = payload.text.orEmpty(),
+                                imageUri = payload.imageUri,
+                                sourceUri = payload.sourceUri,
+                                sourceContentType = payload.sourceContentType,
+                                sourceDocumentFormat = payload.sourceDocumentFormat,
+                                sourceFileName = payload.sourceFileName,
+                            )
                         }
                     }
                 }.also { view.postDelayed(it, 200) }
@@ -150,11 +161,26 @@ fun ArchiveAssistantApp(
         state.editingItem?.let { item ->
             AddItemDialog(
                 onDismiss = effectiveStateStore::closeEditItemDialog,
-                onConfirm = { title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
+                onConfirm = { _, title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
                     effectiveStateStore.confirmEditItem(title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
                 },
                 validationMessage = state.editItemDialogValidationMessage,
                 initialItem = item,
+                topics = state.topics,
+                initialTopicId = item.topicId,
+            )
+        }
+
+        if (state.addItemDialogVisible) {
+            AddItemDialog(
+                onDismiss = effectiveStateStore::closeAddItemDialog,
+                onConfirm = { topicId, title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
+                    effectiveStateStore.confirmAddItem(topicId, title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
+                },
+                validationMessage = state.addItemDialogValidationMessage,
+                prefill = state.addItemDialogPrefill,
+                topics = state.topics,
+                initialTopicId = state.selectedTopicId,
             )
         }
 
@@ -172,6 +198,7 @@ fun ArchiveAssistantApp(
                 content = state.clipboardContent ?: "",
                 imageUri = state.clipboardImageUri,
                 onSummarize = effectiveStateStore::acceptClipboardAndSummarize,
+                onManualCreate = effectiveStateStore::acceptClipboardAndManualCreate,
                 onDismiss = effectiveStateStore::dismissClipboardDialog,
             )
         }
@@ -181,6 +208,17 @@ fun ArchiveAssistantApp(
 private data class ClipboardPayload(
     val text: String?,
     val imageUri: String?,
+    val sourceUri: String?,
+    val sourceContentType: ContentType?,
+    val sourceDocumentFormat: DocumentFormat?,
+    val sourceFileName: String?,
+)
+
+private data class ClipboardSource(
+    val uri: String,
+    val contentType: ContentType,
+    val documentFormat: DocumentFormat?,
+    val fileName: String?,
 )
 
 private fun readClipboardPayload(context: Context): ClipboardPayload? {
@@ -190,18 +228,93 @@ private fun readClipboardPayload(context: Context): ClipboardPayload? {
         null
     } ?: return null
 
+    val source = readableClipboardSource(context, clip)
     val text = (0 until clip.itemCount)
         .firstNotNullOfOrNull { index ->
-            clip.getItemAt(index).coerceToText(context)?.toString()?.trim()?.takeIf { it.isNotBlank() }
+            val item = clip.getItemAt(index)
+            if (item.uri != null && source?.uri == item.uri.toString()) {
+                null
+            } else {
+                try {
+                    item.coerceToText(context)?.toString()?.trim()?.takeIf { it.isNotBlank() }
+                } catch (_: Exception) {
+                    null
+                }
+            }
         }
-    val imageUri = if (clip.description.hasMimeType("image/*")) {
-        (0 until clip.itemCount)
-            .firstNotNullOfOrNull { index -> clip.getItemAt(index).uri?.toString() }
+
+    return if (text != null || source != null) {
+        ClipboardPayload(
+            text = text ?: source?.fileName,
+            imageUri = source?.uri?.takeIf { source.contentType == ContentType.IMAGE_SCREENSHOT },
+            sourceUri = source?.uri,
+            sourceContentType = source?.contentType,
+            sourceDocumentFormat = source?.documentFormat,
+            sourceFileName = source?.fileName,
+        )
     } else {
         null
     }
+}
 
-    return if (text != null || imageUri != null) ClipboardPayload(text, imageUri) else null
+private fun readableClipboardSource(context: Context, clip: ClipData): ClipboardSource? {
+    return (0 until clip.itemCount).firstNotNullOfOrNull { index ->
+        val uri = clip.getItemAt(index).uri ?: return@firstNotNullOfOrNull null
+        val fileName = displayNameFor(context, uri)
+        val contentType = clipboardSourceContentType(clip, fileName)
+            ?: return@firstNotNullOfOrNull null
+        try {
+            context.contentResolver.openInputStream(uri)?.use { }
+            ClipboardSource(
+                uri = uri.toString(),
+                contentType = contentType,
+                documentFormat = if (contentType == ContentType.DOCUMENT) documentFormatFor(clip, fileName) else null,
+                fileName = fileName,
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+}
+
+private fun displayNameFor(context: Context, uri: android.net.Uri): String? {
+    if (uri.scheme == "content") {
+        try {
+            context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex >= 0) {
+                        val name = cursor.getString(nameIndex)
+                        if (!name.isNullOrBlank()) return name
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+    return uri.lastPathSegment?.takeIf { it.isNotBlank() }
+}
+
+private fun clipboardSourceContentType(clip: ClipData, fileName: String?): ContentType? = when {
+    clip.description.hasMimeType("image/*") || fileName.hasExtension("png", "jpg", "jpeg", "webp", "gif") ->
+        ContentType.IMAGE_SCREENSHOT
+    clip.description.hasMimeType("application/*") || clip.description.hasMimeType("text/*") ||
+        fileName.hasExtension("pdf", "md", "markdown", "txt", "docx") -> ContentType.DOCUMENT
+    else -> null
+}
+
+private fun documentFormatFor(clip: ClipData, fileName: String?): DocumentFormat = when {
+    fileName.hasExtension("pdf") || clip.description.hasMimeType("application/pdf") -> DocumentFormat.PDF
+    fileName.hasExtension("md", "markdown") || clip.description.hasMimeType("text/markdown") -> DocumentFormat.MARKDOWN
+    fileName.hasExtension("txt") || clip.description.hasMimeType("text/plain") -> DocumentFormat.TXT
+    fileName.hasExtension("docx") || clip.description.hasMimeType("application/vnd.openxmlformats-officedocument.wordprocessingml.document") -> DocumentFormat.DOCX
+    else -> DocumentFormat.UNKNOWN
+}
+
+private fun String?.hasExtension(vararg extensions: String): Boolean {
+    val extension = this?.substringAfterLast('.', "")?.lowercase()?.takeIf { it.isNotBlank() } ?: return false
+    return extensions.any { it == extension }
 }
 
 @Composable
@@ -228,6 +341,7 @@ private fun SinglePaneLayout(
             onOpenManage = stateStore::openTopicManagement,
             onCreateTopic = stateStore::openTopicManagementForCreate,
             onSearchQueryChanged = stateStore::updateHomeSearchQuery,
+            onOpenClipboard = stateStore::openLatestClipboardDialog,
         )
 
         AppPane.DETAIL -> {
@@ -243,15 +357,6 @@ private fun SinglePaneLayout(
                     onItemClick = stateStore::openCardModal,
                     onAddItemClick = stateStore::openAddItemDialog,
                 )
-                if (state.addItemDialogVisible) {
-                    AddItemDialog(
-                        onDismiss = stateStore::closeAddItemDialog,
-                        onConfirm = { title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
-                            stateStore.confirmAddItem(title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
-                        },
-                        validationMessage = state.addItemDialogValidationMessage,
-                    )
-                }
             } else {
                 HomePane(
                     title = "聚合拾遗",
@@ -267,6 +372,7 @@ private fun SinglePaneLayout(
                     onOpenManage = stateStore::openTopicManagement,
                     onCreateTopic = stateStore::openTopicManagementForCreate,
                     onSearchQueryChanged = stateStore::updateHomeSearchQuery,
+                    onOpenClipboard = stateStore::openLatestClipboardDialog,
                 )
             }
         }
@@ -312,6 +418,7 @@ private fun SinglePaneLayout(
             onOpenManage = stateStore::openTopicManagement,
             onCreateTopic = stateStore::openTopicManagementForCreate,
             onSearchQueryChanged = stateStore::updateHomeSearchQuery,
+            onOpenClipboard = stateStore::openLatestClipboardDialog,
         )
 
         AppPane.CARD_DETAIL -> {
@@ -327,15 +434,6 @@ private fun SinglePaneLayout(
                     onItemClick = stateStore::openCardModal,
                     onAddItemClick = stateStore::openAddItemDialog,
                 )
-                if (state.addItemDialogVisible) {
-                    AddItemDialog(
-                        onDismiss = stateStore::closeAddItemDialog,
-                        onConfirm = { title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
-                            stateStore.confirmAddItem(title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
-                        },
-                        validationMessage = state.addItemDialogValidationMessage,
-                    )
-                }
             } else {
                 HomePane(
                     title = "聚合拾遗",
@@ -351,6 +449,7 @@ private fun SinglePaneLayout(
                     onOpenManage = stateStore::openTopicManagement,
                     onCreateTopic = stateStore::openTopicManagementForCreate,
                     onSearchQueryChanged = stateStore::updateHomeSearchQuery,
+                    onOpenClipboard = stateStore::openLatestClipboardDialog,
                 )
             }
         }
@@ -384,6 +483,7 @@ private fun TwoPaneLayout(
                 onOpenManage = stateStore::openTopicManagement,
                 onCreateTopic = stateStore::openTopicManagementForCreate,
                 onSearchQueryChanged = stateStore::updateHomeSearchQuery,
+                onOpenClipboard = stateStore::openLatestClipboardDialog,
             )
         }
 
@@ -424,15 +524,6 @@ private fun TwoPaneLayout(
                             onItemClick = stateStore::openCardModal,
                             onAddItemClick = stateStore::openAddItemDialog,
                         )
-                        if (state.addItemDialogVisible) {
-                            AddItemDialog(
-                                onDismiss = stateStore::closeAddItemDialog,
-                                onConfirm = { title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
-                            stateStore.confirmAddItem(title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
-                        },
-                                validationMessage = state.addItemDialogValidationMessage,
-                            )
-                        }
                     }
                 }
 
@@ -480,15 +571,6 @@ private fun TwoPaneLayout(
                             onItemClick = stateStore::openCardModal,
                             onAddItemClick = stateStore::openAddItemDialog,
                         )
-                        if (state.addItemDialogVisible) {
-                            AddItemDialog(
-                                onDismiss = stateStore::closeAddItemDialog,
-                                onConfirm = { title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName ->
-                            stateStore.confirmAddItem(title, contentType, sourceUrl, summary, useAiSummary, documentFormat, fileName)
-                        },
-                                validationMessage = state.addItemDialogValidationMessage,
-                            )
-                        }
                     }
                 }
             }

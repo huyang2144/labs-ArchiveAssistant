@@ -55,6 +55,7 @@ fun HomePane(
     onOpenManage: () -> Unit,
     onCreateTopic: () -> Unit,
     onSearchQueryChanged: (String) -> Unit,
+    onOpenClipboard: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PaneContainer(modifier = modifier.testTag("home-pane")) {
@@ -84,6 +85,7 @@ fun HomePane(
                         validationMessage = parserValidationMessage,
                         onInputChanged = onParserInputChanged,
                         onSubmit = onSubmitParserInput,
+                        onOpenClipboard = onOpenClipboard,
                     )
                 }
             }
@@ -169,6 +171,7 @@ private fun ParserSection(
     validationMessage: String?,
     onInputChanged: (String) -> Unit,
     onSubmit: () -> Unit,
+    onOpenClipboard: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -207,11 +210,18 @@ private fun ParserSection(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            ActionButton(
-                label = "智能归纳",
-                onClick = onSubmit,
-                testTag = "classify-button",
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextActionButton(
+                    label = "剪切板",
+                    onClick = onOpenClipboard,
+                    testTag = "clipboard-button",
+                )
+                ActionButton(
+                    label = "智能归纳",
+                    onClick = onSubmit,
+                    testTag = "classify-button",
+                )
+            }
         }
         if (validationMessage != null) {
             Text(

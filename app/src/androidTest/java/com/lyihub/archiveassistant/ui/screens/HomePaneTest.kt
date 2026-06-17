@@ -36,11 +36,13 @@ class HomePaneTest {
                     onCreateTopic = {},
                     searchQuery = "",
                     onSearchQueryChanged = {},
+                    onOpenClipboard = {},
                 )
             }
         }
 
         composeTestRule.onNodeWithTag("parser-input").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("clipboard-button").assertIsDisplayed()
         composeTestRule.onNodeWithTag("classify-button").assertIsDisplayed()
         composeTestRule.onNodeWithTag("recent-topic-list").assertIsDisplayed()
         composeTestRule.onNodeWithTag("manage-button").assertIsDisplayed()
@@ -68,6 +70,7 @@ class HomePaneTest {
                     onCreateTopic = {},
                     searchQuery = "",
                     onSearchQueryChanged = {},
+                    onOpenClipboard = {},
                 )
             }
         }
@@ -77,6 +80,35 @@ class HomePaneTest {
 
         composeTestRule.onNodeWithTag("classify-button").performClick()
         assertEquals(true, submitCalled)
+    }
+
+    @Test
+    fun homePane_clipboardButton_click_triggersCallback() {
+        var clipboardCalled = false
+
+        composeTestRule.setContent {
+            ArchiveAssistantTheme {
+                HomePane(
+                    title = "聚合拾遗",
+                    parserInput = "",
+                    parserValidationMessage = null,
+                    recentTopics = emptyList(),
+                    itemsByTopic = emptyMap(),
+                    onParserInputChanged = {},
+                    onSubmitParserInput = {},
+                    onTopicSelected = {},
+                    onOpenSettings = {},
+                    onOpenManage = {},
+                    onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
+                    onOpenClipboard = { clipboardCalled = true },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("clipboard-button").performClick()
+        assertEquals(true, clipboardCalled)
     }
 
     @Test
@@ -97,6 +129,7 @@ class HomePaneTest {
                     onCreateTopic = {},
                     searchQuery = "",
                     onSearchQueryChanged = {},
+                    onOpenClipboard = {},
                 )
             }
         }
@@ -126,6 +159,7 @@ class HomePaneTest {
                     onCreateTopic = {},
                     searchQuery = "",
                     onSearchQueryChanged = {},
+                    onOpenClipboard = {},
                 )
             }
         }
@@ -155,6 +189,7 @@ class HomePaneTest {
                     onCreateTopic = { createTopicCalled = true },
                     searchQuery = "",
                     onSearchQueryChanged = {},
+                    onOpenClipboard = {},
                 )
             }
         }
