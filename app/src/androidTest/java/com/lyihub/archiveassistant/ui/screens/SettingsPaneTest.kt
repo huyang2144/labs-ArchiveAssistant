@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -14,8 +15,13 @@ import com.lyihub.archiveassistant.data.AiEndpointLatencyResult
 import com.lyihub.archiveassistant.domain.AiEnginePreset
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
+import com.lyihub.archiveassistant.domain.BenchResult
+import com.lyihub.archiveassistant.domain.InferenceBackend
+import com.lyihub.archiveassistant.domain.LocalModelState
+import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.ui.theme.ArchiveAssistantTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -57,7 +63,7 @@ class SettingsPaneTest {
         composeTestRule.onNodeWithTag("api-key-input").assertIsDisplayed()
         composeTestRule.onNodeWithTag("cloud-model-input").assertIsDisplayed()
         composeTestRule.onNodeWithTag("local-endpoint-input").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("local-model-input").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("local-model-panel").assertDoesNotExist()
     }
 
     @Test
@@ -72,8 +78,9 @@ class SettingsPaneTest {
             }
         }
 
-        composeTestRule.onNodeWithTag("local-endpoint-input").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("local-model-input").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("local-endpoint-input").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("local-model-panel").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("model-status-text").assertTextContains("未下载")
         composeTestRule.onNodeWithTag("cloud-base-url-input").assertDoesNotExist()
         composeTestRule.onNodeWithTag("api-key-input").assertDoesNotExist()
         composeTestRule.onNodeWithTag("cloud-model-input").assertDoesNotExist()
@@ -100,7 +107,7 @@ class SettingsPaneTest {
 
         composeTestRule.waitForIdle()
         assertEquals(AiEngineType.LOCAL_MODEL, currentSettings.engineType)
-        composeTestRule.onNodeWithTag("local-endpoint-input").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("local-endpoint-input").assertDoesNotExist()
         composeTestRule.onNodeWithTag("cloud-base-url-input").assertDoesNotExist()
     }
 
@@ -141,29 +148,6 @@ class SettingsPaneTest {
         composeTestRule.waitForIdle()
 
         assertEquals("https://api.example.com/v1/chat", updatedSettings?.baseUrl)
-    }
-
-    @Test
-    fun settingsPane_localEndpointChange_triggersCallback() {
-        var updatedSettings: AiEngineSettings? = null
-
-        composeTestRule.setContent {
-            ArchiveAssistantTheme {
-                SettingsPane(
-                    aiSettings = AiEngineSettings(
-                        engineType = AiEngineType.LOCAL_MODEL,
-                        localEndpoint = "http://127.0.0.1:11434",
-                    ),
-                    onAiSettingsChanged = { updatedSettings = it },
-                    onBack = {},
-                )
-            }
-        }
-
-        composeTestRule.onNodeWithTag("local-endpoint-input").performTextInput("/api")
-        composeTestRule.waitForIdle()
-
-        assertEquals("http://127.0.0.1:11434/api", updatedSettings?.localEndpoint)
     }
 
     @Test
@@ -273,6 +257,140 @@ class SettingsPaneTest {
     }
 
     @Test
+    fun notDownloadedShowsDownloadButton() {
+        var downloadClicked = false
+
+        setLocalModelContent(
+            localModelState = LocalModelState(LocalModelStatus.NOT_DOWNLOADED),
+            onDownloadModel = { downloadClicked = true },
+        )
+
+        composeTestRule.onNodeWithTag("download-model-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("download-model-button").performClick()
+
+        assertTrue(downloadClicked)
+    }
+
+    @Test
+    fun downloadingShowsProgressAndCancel() {
+        var cancelClicked = false
+
+        setLocalModelContent(
+            localModelState = LocalModelState(
+                status = LocalModelStatus.DOWNLOADING,
+                downloadProgress = 0.5f,
+            ),
+            onCancelDownload = { cancelClicked = true },
+        )
+
+        composeTestRule.onNodeWithTag("download-progress-bar").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("download-progress-text").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("download-progress-text").assertTextEquals("50%")
+        composeTestRule.onNodeWithTag("cancel-download-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("cancel-download-button").performClick()
+
+        assertTrue(cancelClicked)
+    }
+
+    @Test
+    fun downloadedShowsStartButton() {
+        var startClicked = false
+
+        setLocalModelContent(
+            localModelState = LocalModelState(LocalModelStatus.DOWNLOADED),
+            onStartModel = { startClicked = true },
+        )
+
+        composeTestRule.onNodeWithTag("start-model-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("start-model-button").performClick()
+
+        assertTrue(startClicked)
+    }
+
+    @Test
+    fun readyShowsStopButton() {
+        var stopClicked = false
+
+        setLocalModelContent(
+            localModelState = LocalModelState(LocalModelStatus.READY),
+            onStopModel = { stopClicked = true },
+        )
+
+        composeTestRule.onNodeWithTag("stop-model-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("stop-model-button").performClick()
+
+        assertTrue(stopClicked)
+    }
+
+    @Test
+    fun readyShowsBenchmarkButton() {
+        var benchmarkClicked = false
+
+        setLocalModelContent(
+            localModelState = LocalModelState(LocalModelStatus.READY),
+            onRunBenchmark = { benchmarkClicked = true },
+        )
+
+        composeTestRule.onNodeWithTag("benchmark-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("benchmark-button").performClick()
+
+        assertTrue(benchmarkClicked)
+    }
+
+    @Test
+    fun errorShowsRetryButton() {
+        var downloadClicked = false
+
+        setLocalModelContent(
+            localModelState = LocalModelState(
+                status = LocalModelStatus.ERROR,
+                errorMessage = "test error",
+            ),
+            onDownloadModel = { downloadClicked = true },
+        )
+
+        composeTestRule.onNodeWithTag("model-error-text").assertTextContains("test error")
+        composeTestRule.onNodeWithTag("retry-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("retry-button").performClick()
+
+        assertTrue(downloadClicked)
+    }
+
+    @Test
+    fun benchmarkResultDisplayed() {
+        setLocalModelContent(
+            localModelState = LocalModelState(LocalModelStatus.READY),
+            benchmarkResult = BenchResult(
+                promptTokens = 128,
+                generateTokens = 128,
+                prefillTokensPerSecond = 1000f,
+                decodeTokensPerSecond = 50f,
+                totalTimeMs = 5000L,
+                backend = InferenceBackend.GPU,
+            ),
+        )
+
+        composeTestRule.onNodeWithTag("benchmark-result-text")
+            .assertTextContains("Prefill: 1000.0 tk/s | Decode: 50.0 tk/s | 总耗时: 5000ms | 后端: GPU")
+    }
+
+    @Test
+    fun backendPreferenceChange() {
+        var selectedBackend: InferenceBackend? = null
+
+        setLocalModelContent(
+            localModelState = LocalModelState(LocalModelStatus.NOT_DOWNLOADED),
+            onBackendPreferenceChange = { selectedBackend = it },
+        )
+
+        composeTestRule.onNodeWithTag("backend-preference-selector").performClick()
+        composeTestRule.onNodeWithText("GPU").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(InferenceBackend.GPU, selectedBackend)
+    }
+
+    @Test
     fun settingsPane_savePreset_addsPresetAndCallsCallback() {
         var currentSettings by mutableStateOf(AiEngineSettings(
             engineType = AiEngineType.ANTHROPIC,
@@ -346,5 +464,34 @@ class SettingsPaneTest {
         composeTestRule.waitForIdle()
 
         assertEquals(emptyList<AiEnginePreset>(), savedPresets)
+    }
+
+    private fun setLocalModelContent(
+        localModelState: LocalModelState,
+        benchmarkResult: BenchResult? = null,
+        onDownloadModel: () -> Unit = {},
+        onCancelDownload: () -> Unit = {},
+        onStartModel: () -> Unit = {},
+        onStopModel: () -> Unit = {},
+        onRunBenchmark: () -> Unit = {},
+        onBackendPreferenceChange: (InferenceBackend) -> Unit = {},
+    ) {
+        composeTestRule.setContent {
+            ArchiveAssistantTheme {
+                SettingsPane(
+                    aiSettings = AiEngineSettings(engineType = AiEngineType.LOCAL_MODEL),
+                    onAiSettingsChanged = {},
+                    onBack = {},
+                    localModelState = localModelState,
+                    benchmarkResult = benchmarkResult,
+                    onDownloadModel = onDownloadModel,
+                    onCancelDownload = onCancelDownload,
+                    onStartModel = onStartModel,
+                    onStopModel = onStopModel,
+                    onRunBenchmark = onRunBenchmark,
+                    onBackendPreferenceChange = onBackendPreferenceChange,
+                )
+            }
+        }
     }
 }

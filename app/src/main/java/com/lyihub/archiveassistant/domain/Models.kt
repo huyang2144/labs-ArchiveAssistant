@@ -46,13 +46,62 @@ enum class AiEngineType {
     LOCAL_MODEL,
 }
 
+enum class LocalModelStatus {
+    NOT_DOWNLOADED,
+    DOWNLOADING,
+    DOWNLOADED,
+    INITIALIZING,
+    READY,
+    INFERENCING,
+    ERROR,
+    STOPPING,
+}
+
+enum class InferenceBackend {
+    NPU,
+    GPU,
+    CPU,
+    UNKNOWN,
+}
+
+data class LocalModelInfo(
+    val id: String,
+    val displayName: String,
+    val fileName: String,
+    val downloadUrl: String,
+    val expectedSha256: String,
+    val sizeBytes: Long,
+)
+
+data class LocalModelState(
+    val status: LocalModelStatus = LocalModelStatus.NOT_DOWNLOADED,
+    val downloadProgress: Float = 0f,
+    val downloadBytes: Long = 0,
+    val totalBytes: Long = 0,
+    val activeBackend: InferenceBackend = InferenceBackend.UNKNOWN,
+    val errorMessage: String? = null,
+    val modelPath: String? = null,
+)
+
+data class BenchResult(
+    val promptTokens: Int,
+    val generateTokens: Int,
+    val prefillTokensPerSecond: Float,
+    val decodeTokensPerSecond: Float,
+    val totalTimeMs: Long,
+    val backend: InferenceBackend,
+)
+
 data class AiEngineSettings(
     val engineType: AiEngineType = AiEngineType.OPENAI_COMPATIBLE,
     val baseUrl: String = "https://api.example.com/v1",
     val modelName: String = "mock-knowledge-classifier",
     val apiKeyAlias: String = "default",
     val apiKey: String = "",
+    @Deprecated("Replaced by in-process LiteRT-LM, kept for migration")
     val localEndpoint: String = "http://127.0.0.1:11434",
+    val localModelId: String? = null,
+    val localBackendPreference: InferenceBackend = InferenceBackend.NPU,
 )
 
 data class AiEnginePreset(
@@ -87,4 +136,6 @@ sealed interface ClassificationResult {
     data class Classified(val payload: ClassificationPayload) : ClassificationResult
 
     data class BlankInput(val message: String = "请输入要归档的内容") : ClassificationResult
+
+    data object Unknown : ClassificationResult
 }

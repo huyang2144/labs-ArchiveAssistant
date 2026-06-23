@@ -16,6 +16,8 @@ import com.lyihub.archiveassistant.app.isMimeAllowed
 import com.lyihub.archiveassistant.data.AiEnginePresetRepository
 import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
 import com.lyihub.archiveassistant.data.AppDataRepository
+import com.lyihub.archiveassistant.data.OkHttpModelDownloadManager
+import com.lyihub.archiveassistant.service.LocalInferenceConnection
 import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
 import com.lyihub.archiveassistant.ui.theme.ArchiveAssistantTheme
 
@@ -29,8 +31,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val aiSettingsRepository = AiEngineSettingsRepository(aiEngineSettingsDataStore)
         stateStore = ArchiveAssistantStateStore(
             appDataRepository = AppDataRepository(appDataStore),
+            aiSettingsRepository = aiSettingsRepository,
+            modelDownloadManager = OkHttpModelDownloadManager(this),
+            inferenceConnection = LocalInferenceConnection(this),
             androidContext = this,
         )
         window.decorView.setOnDragListener { _, event ->
@@ -38,7 +44,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val aiSettingsRepository = remember {
-                AiEngineSettingsRepository(aiEngineSettingsDataStore)
+                aiSettingsRepository
             }
             val aiPresetRepository = remember {
                 AiEnginePresetRepository(aiEngineSettingsDataStore)

@@ -31,11 +31,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.lyihub.archiveassistant.data.AiEnginePresetRepository
 import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
 import com.lyihub.archiveassistant.data.AppDataRepository
+import com.lyihub.archiveassistant.data.OkHttpModelDownloadManager
 import com.lyihub.archiveassistant.domain.AiEnginePreset
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AppPane
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.service.LocalInferenceConnection
 import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
 import com.lyihub.archiveassistant.ui.layout.LayoutMode
 import com.lyihub.archiveassistant.ui.layout.rememberWindowLayoutInfo
@@ -61,17 +63,15 @@ fun ArchiveAssistantApp(
     val effectiveStateStore = stateStore ?: androidx.compose.runtime.remember(appDataRepository) {
         ArchiveAssistantStateStore(
             appDataRepository = appDataRepository,
+            aiSettingsRepository = aiSettingsRepository,
+            modelDownloadManager = OkHttpModelDownloadManager(context),
+            inferenceConnection = LocalInferenceConnection(context),
             androidContext = context,
         )
     }
     val coroutineScope = rememberCoroutineScope()
     val onAiSettingsChanged: (AiEngineSettings) -> Unit = { settings ->
         effectiveStateStore.updateAiSettings(settings)
-        aiSettingsRepository?.let { repository ->
-            coroutineScope.launch {
-                repository.save(settings)
-            }
-        }
     }
 
     val presets = aiPresetRepository?.presets?.collectAsState(initial = emptyList())?.value ?: emptyList()
@@ -548,6 +548,15 @@ private fun SinglePaneLayout(
                 onBack = stateStore::closePanes,
                 presets = presets,
                 onPresetsChanged = onPresetsChanged,
+                onDownloadModel = stateStore::downloadModel,
+                onCancelDownload = stateStore::cancelDownload,
+                onStartModel = stateStore::startModel,
+                onStopModel = stateStore::stopModel,
+                onBackendPreferenceChange = stateStore::updateBackendPreference,
+                onRunBenchmark = stateStore::runBenchmark,
+                localModelState = state.localModelState,
+                benchmarkResult = state.benchmarkResult,
+                isBenchmarkRunning = state.isBenchmarkRunning,
             )
 
         AppPane.MANAGE -> ManagePane(
@@ -698,6 +707,15 @@ private fun TwoPaneLayout(
                     onBack = stateStore::closePanes,
                     presets = presets,
                     onPresetsChanged = onPresetsChanged,
+                    onDownloadModel = stateStore::downloadModel,
+                    onCancelDownload = stateStore::cancelDownload,
+                    onStartModel = stateStore::startModel,
+                    onStopModel = stateStore::stopModel,
+                    onBackendPreferenceChange = stateStore::updateBackendPreference,
+                    onRunBenchmark = stateStore::runBenchmark,
+                    localModelState = state.localModelState,
+                    benchmarkResult = state.benchmarkResult,
+                    isBenchmarkRunning = state.isBenchmarkRunning,
                 )
 
                 AppPane.TOPICS -> EmptyDetailPane()

@@ -44,11 +44,18 @@ import com.lyihub.archiveassistant.data.testAiEndpointLatency
 import com.lyihub.archiveassistant.domain.AiEnginePreset
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
+import com.lyihub.archiveassistant.domain.BenchResult
+import com.lyihub.archiveassistant.domain.GEMMA_4_E4B_IT
+import com.lyihub.archiveassistant.domain.InferenceBackend
+import com.lyihub.archiveassistant.domain.LocalModelState
+import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.ui.components.PaneContainer
 import com.lyihub.archiveassistant.ui.components.PaneContentPadding
 import com.lyihub.archiveassistant.ui.components.PaneDivider
 import com.lyihub.archiveassistant.ui.components.PaneHeader
 import kotlinx.coroutines.launch
+import androidx.compose.material3.Card
+import androidx.compose.material3.LinearProgressIndicator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +67,15 @@ fun SettingsPane(
     onPresetsChanged: (List<AiEnginePreset>) -> Unit = {},
     modifier: Modifier = Modifier,
     testLatency: suspend (AiEngineSettings, String) -> AiEndpointLatencyResult = ::testAiEndpointLatency,
+    onDownloadModel: () -> Unit = {},
+    onCancelDownload: () -> Unit = {},
+    onStartModel: () -> Unit = {},
+    onStopModel: () -> Unit = {},
+    onBackendPreferenceChange: (InferenceBackend) -> Unit = {},
+    onRunBenchmark: () -> Unit = {},
+    localModelState: LocalModelState = LocalModelState(LocalModelStatus.NOT_DOWNLOADED),
+    benchmarkResult: BenchResult? = null,
+    isBenchmarkRunning: Boolean = false,
 ) {
     var engineTypeExpanded by remember { mutableStateOf(false) }
     var presetExpanded by remember { mutableStateOf(false) }
@@ -68,6 +84,7 @@ fun SettingsPane(
     var savePresetError by remember { mutableStateOf<String?>(null) }
     var latencyResultText by remember { mutableStateOf<String?>(null) }
     var isTestingLatency by remember { mutableStateOf(false) }
+    var backendExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     val selectedPresetName: String? = remember(presets, aiSettings) {
@@ -292,33 +309,238 @@ fun SettingsPane(
                     }
 
                     if (aiSettings.engineType == AiEngineType.LOCAL_MODEL) {
-                        OutlinedTextField(
-                            value = aiSettings.localEndpoint,
-                            onValueChange = {
-                                onAiSettingsChanged(aiSettings.copy(localEndpoint = it))
-                            },
-                            label = { Text("本地服务地址") },
-                            singleLine = true,
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .testTag("local-endpoint-input"),
-                        )
-                        OutlinedTextField(
-                            value = aiSettings.modelName,
-                            onValueChange = {
-                                onAiSettingsChanged(aiSettings.copy(modelName = it))
-                            },
-                            label = { Text("本地模型") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("local-model-input"),
-                        )
-                        Text(
-                            text = "本地模型将调用系统内置算力推演摘要。速度受限于设备硬件。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                                .testTag("local-model-panel"),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(
+                                        text = GEMMA_4_E4B_IT.displayName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
+                                    Text(
+                                        text = "大小: %.2f GB".format(
+                                            GEMMA_4_E4B_IT.sizeBytes / (1024f * 1024f * 1024f),
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = "状态: ${when (localModelState.status) {
+                                            LocalModelStatus.NOT_DOWNLOADED -> "未下载"
+                                            LocalModelStatus.DOWNLOADING -> "下载中"
+                                            LocalModelStatus.DOWNLOADED -> "已下载"
+                                            LocalModelStatus.INITIALIZING -> "初始化中"
+                                            LocalModelStatus.READY -> "就绪"
+                                            LocalModelStatus.INFERENCING -> "推理中"
+                                            LocalModelStatus.ERROR -> "错误"
+                                            LocalModelStatus.STOPPING -> "停止中"
+                                        }}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.testTag("model-status-text"),
+                                    )
+                                }
+                            }
+
+                            when (localModelState.status) {
+                                LocalModelStatus.NOT_DOWNLOADED, LocalModelStatus.ERROR -> {
+                                    Button(
+                                        onClick = onDownloadModel,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("download-model-button"),
+                                    ) {
+                                        Text("下载模型")
+                                    }
+                                }
+                                LocalModelStatus.DOWNLOADING -> {
+                                    val clampedProgress = localModelState.downloadProgress.coerceIn(0f, 1f)
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        LinearProgressIndicator(
+                                            progress = { clampedProgress },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("download-progress-bar"),
+                                        )
+                                        Text(
+                                            text = "${(clampedProgress * 100).toInt()}%",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.testTag("download-progress-text"),
+                                        )
+                                        TextButton(
+                                            onClick = onCancelDownload,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("cancel-download-button"),
+                                        ) {
+                                            Text("取消")
+                                        }
+                                    }
+                                }
+                                LocalModelStatus.DOWNLOADED -> {
+                                    Button(
+                                        onClick = onStartModel,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("start-model-button"),
+                                    ) {
+                                        Text("开启模型")
+                                    }
+                                }
+                                LocalModelStatus.READY, LocalModelStatus.INFERENCING -> {
+                                    Button(
+                                        onClick = onStopModel,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("stop-model-button"),
+                                    ) {
+                                        Text("停止模型")
+                                    }
+                                }
+                                else -> {}
+                            }
+
+                            ExposedDropdownMenuBox(
+                                expanded = backendExpanded,
+                                onExpandedChange = { backendExpanded = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("backend-preference-selector"),
+                            ) {
+                                OutlinedTextField(
+                                    value = if (localModelState.activeBackend != InferenceBackend.UNKNOWN) {
+                                        when (localModelState.activeBackend) {
+                                            InferenceBackend.NPU -> "NPU"
+                                            InferenceBackend.GPU -> "GPU"
+                                            InferenceBackend.CPU -> "CPU"
+                                            else -> "NPU"
+                                        }
+                                    } else {
+                                        when (aiSettings.localBackendPreference) {
+                                            InferenceBackend.NPU -> "NPU"
+                                            InferenceBackend.GPU -> "GPU"
+                                            InferenceBackend.CPU -> "CPU"
+                                            else -> "NPU"
+                                        }
+                                    },
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("推理后端") },
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(
+                                            expanded = backendExpanded,
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                        .fillMaxWidth(),
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = backendExpanded,
+                                    onDismissRequest = { backendExpanded = false },
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("NPU") },
+                                        onClick = {
+                                            onBackendPreferenceChange(InferenceBackend.NPU)
+                                            backendExpanded = false
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("GPU") },
+                                        onClick = {
+                                            onBackendPreferenceChange(InferenceBackend.GPU)
+                                            backendExpanded = false
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("CPU") },
+                                        onClick = {
+                                            onBackendPreferenceChange(InferenceBackend.CPU)
+                                            backendExpanded = false
+                                        },
+                                    )
+                                }
+                            }
+
+                            if (localModelState.status == LocalModelStatus.READY || localModelState.status == LocalModelStatus.INFERENCING) {
+                                Button(
+                                    onClick = onRunBenchmark,
+                                    enabled = !isBenchmarkRunning,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("benchmark-button"),
+                                ) {
+                                    if (isBenchmarkRunning) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier
+                                                .padding(end = 8.dp)
+                                                .testTag("benchmark-loading-indicator"),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            strokeWidth = 2.dp,
+                                        )
+                                    }
+                                    Text("测试推理速度")
+                                }
+
+                                benchmarkResult?.let { result ->
+                                    Text(
+                                        text = "Prefill: %.1f tk/s | Decode: %.1f tk/s | 总耗时: %dms | 后端: %s".format(
+                                            result.prefillTokensPerSecond,
+                                            result.decodeTokensPerSecond,
+                                            result.totalTimeMs,
+                                            when (result.backend) {
+                                                InferenceBackend.NPU -> "NPU"
+                                                InferenceBackend.GPU -> "GPU"
+                                                InferenceBackend.CPU -> "CPU"
+                                                else -> "UNKNOWN"
+                                            },
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("benchmark-result-text"),
+                                    )
+                                }
+                            }
+
+                            if (localModelState.status == LocalModelStatus.ERROR) {
+                                localModelState.errorMessage?.let { msg ->
+                                    Text(
+                                        text = msg,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("model-error-text"),
+                                    )
+                                }
+                                Button(
+                                    onClick = onDownloadModel,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("retry-button"),
+                                ) {
+                                    Text("重试")
+                                }
+                            }
+
+                        }
                     }
 
                     Button(

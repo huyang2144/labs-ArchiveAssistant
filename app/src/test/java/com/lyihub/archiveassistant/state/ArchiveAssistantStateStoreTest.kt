@@ -1,19 +1,50 @@
 package com.lyihub.archiveassistant.state
 
+import com.lyihub.archiveassistant.data.ModelDownloadManager
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
 import com.lyihub.archiveassistant.domain.AppPane
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.domain.FakeLocalLlmEngine
+import com.lyihub.archiveassistant.domain.InferenceBackend
+import com.lyihub.archiveassistant.domain.LocalLlmEngine
+import com.lyihub.archiveassistant.domain.LocalModelInfo
+import com.lyihub.archiveassistant.domain.LocalModelState
+import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.domain.SampleKnowledgeData
+import com.lyihub.archiveassistant.service.LocalInferenceGateway
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.TestDispatcher
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ArchiveAssistantStateStoreTest {
+    private val testDispatcher: TestDispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
     @Test
     fun initialState_exposesSeededDataAndSettings() {
         val store = ArchiveAssistantStateStore()
@@ -720,5 +751,300 @@ class ArchiveAssistantStateStoreTest {
 
         assertTrue(released)
         assertNull(store.releaseDragPermission)
+    }
+
+    @Test
+    fun localModelFullFlow() {
+        val downloadManager = FakeModelDownloadManager()
+        val engine = FakeLocalLlmEngine().also {
+            runBlocking { it.initialize("/tmp/model", InferenceBackend.CPU) }
+        }
+        val inferenceConnection = FakeLocalInferenceGateway(engine)
+        val store = localStore(downloadManager, inferenceConnection)
+
+        assertEquals(LocalModelStatus.NOT_DOWNLOADED, store.state.localModelState.status)
+
+        store.downloadModel()
+        downloadManager.emit(LocalModelState(status = LocalModelStatus.DOWNLOADING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.DOWNLOADING }
+        downloadManager.emit(LocalModelState(status = LocalModelStatus.DOWNLOADED))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.DOWNLOADED }
+
+        store.startModel()
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.INITIALIZING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.INITIALIZING }
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.READY, activeBackend = InferenceBackend.CPU))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.READY }
+
+        store.updateAiSettings(AiEngineSettings(engineType = AiEngineType.LOCAL_MODEL))
+        store.updateParserInput("local inference note")
+        store.submitParserInput()
+        assertEquals(LocalModelStatus.READY, store.state.localModelState.status)
+
+        store.stopModel()
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.STOPPING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.STOPPING }
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.DOWNLOADED))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.DOWNLOADED }
+    }
+
+    @Test
+    fun concurrentStartIgnored() {
+        val inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine())
+        val store = localStore(inferenceConnection = inferenceConnection)
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.INITIALIZING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.INITIALIZING }
+
+        store.startModel()
+
+        assertEquals(0, inferenceConnection.startCount)
+    }
+
+    @Test
+    fun stopModelDuringStartModel_handlesGracefully() {
+        val inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine())
+        val store = localStore(inferenceConnection = inferenceConnection)
+
+        store.startModel()
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.INITIALIZING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.INITIALIZING }
+        store.stopModel()
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.STOPPING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.STOPPING }
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.DOWNLOADED))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.DOWNLOADED }
+
+        assertEquals(1, inferenceConnection.startCount)
+        assertEquals(1, inferenceConnection.stopCount)
+    }
+
+    @Test
+    fun inferencingStateRejectsNewInferenceWithMessage() {
+        val store = localStore(
+            inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine()),
+            localModelStateProvider = { LocalModelState(status = LocalModelStatus.INFERENCING) },
+        )
+        store.updateAiSettings(AiEngineSettings(engineType = AiEngineType.LOCAL_MODEL))
+        store.updateParserInput("local inference note")
+
+        store.submitParserInput()
+
+        assertEquals("推理进行中", store.state.parserValidationMessage)
+    }
+
+    @Test
+    fun downloadFailureThenRetry() {
+        val downloadManager = FakeModelDownloadManager()
+        val store = localStore(downloadManager = downloadManager)
+
+        store.downloadModel()
+        downloadManager.emit(LocalModelState(status = LocalModelStatus.ERROR, errorMessage = "network failed"))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.ERROR }
+        store.downloadModel()
+        downloadManager.emit(LocalModelState(status = LocalModelStatus.DOWNLOADING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.DOWNLOADING }
+        downloadManager.emit(LocalModelState(status = LocalModelStatus.DOWNLOADED))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.DOWNLOADED }
+
+        assertEquals(2, downloadManager.startCount)
+    }
+
+    @Test
+    fun engineSwitchStopsModel() {
+        val inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine())
+        val store = localStore(inferenceConnection = inferenceConnection)
+        store.updateAiSettings(AiEngineSettings(engineType = AiEngineType.LOCAL_MODEL))
+        store.startModel()
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.INITIALIZING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.INITIALIZING }
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.READY))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.READY }
+
+        store.updateAiSettings(store.state.aiSettings.copy(engineType = AiEngineType.OPENAI_COMPATIBLE))
+
+        assertEquals(1, inferenceConnection.stopCount)
+    }
+
+    @Test
+    fun backendPreferenceSwitchWhenReadyStopsModelBeforeRestart() {
+        val inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine())
+        val store = localStore(inferenceConnection = inferenceConnection)
+        store.updateAiSettings(AiEngineSettings(engineType = AiEngineType.LOCAL_MODEL))
+        store.startModel()
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.INITIALIZING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.INITIALIZING }
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.READY, activeBackend = InferenceBackend.CPU))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.READY }
+
+        store.updateAiSettings(store.state.aiSettings.copy(localBackendPreference = InferenceBackend.GPU))
+        store.stopModel()
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.STOPPING))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.STOPPING }
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.DOWNLOADED))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.DOWNLOADED }
+        store.startModel()
+
+        assertEquals(1, inferenceConnection.stopCount)
+        assertEquals(2, inferenceConnection.startCount)
+        assertEquals(InferenceBackend.GPU, inferenceConnection.lastBackend)
+    }
+
+    @Test
+    fun restoreAfterDeath() {
+        val downloadedStore = localStore(modelFileExists = true)
+        val missingStore = localStore(modelFileExists = false)
+
+        assertEquals(LocalModelStatus.DOWNLOADED, downloadedStore.state.localModelState.status)
+        assertEquals(LocalModelStatus.NOT_DOWNLOADED, missingStore.state.localModelState.status)
+    }
+
+    @Test
+    fun modelFileDeleted() {
+        val store = localStore(modelFileExists = false)
+        store.updateAiSettings(AiEngineSettings(engineType = AiEngineType.LOCAL_MODEL))
+        store.updateParserInput("local inference note")
+
+        store.submitParserInput()
+
+        assertEquals(LocalModelStatus.NOT_DOWNLOADED, store.state.localModelState.status)
+        assertEquals("本地模型未就绪，请先开启模型", store.state.parserValidationMessage)
+    }
+
+    @Test
+    fun benchmarkSuccess() {
+        val engine = FakeLocalLlmEngine().also {
+            runBlocking { it.initialize("/tmp/model", InferenceBackend.CPU) }
+            it.delayMillis = 100L
+        }
+        val inferenceConnection = FakeLocalInferenceGateway(engine)
+        val store = localStore(inferenceConnection = inferenceConnection, modelFileExists = true)
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.READY))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.READY }
+
+        store.runBenchmark()
+        waitUntil { store.state.isBenchmarkRunning }
+        waitUntil { !store.state.isBenchmarkRunning && store.state.benchmarkResult != null }
+
+        assertNotNull(store.state.benchmarkResult)
+        assertTrue((store.state.benchmarkResult?.decodeTokensPerSecond ?: 0f) > 0f)
+    }
+
+    @Test
+    fun benchmarkIgnoredWhenNotReady() {
+        val store = localStore(inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine()))
+
+        store.runBenchmark()
+
+        assertFalse(store.state.isBenchmarkRunning)
+        assertNull(store.state.benchmarkResult)
+    }
+
+    @Test
+    fun benchmarkFailure() {
+        val engine = FakeLocalLlmEngine().also {
+            runBlocking { it.initialize("/tmp/model", InferenceBackend.CPU) }
+            it.delayMillis = 100L
+            it.benchmarkFailure = IllegalStateException("benchmark failed")
+        }
+        val inferenceConnection = FakeLocalInferenceGateway(engine)
+        val store = localStore(inferenceConnection = inferenceConnection, modelFileExists = true)
+        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.READY))
+        waitUntil { store.state.localModelState.status == LocalModelStatus.READY }
+
+        store.runBenchmark()
+        waitUntil { store.state.isBenchmarkRunning }
+        waitUntil { !store.state.isBenchmarkRunning }
+
+        assertNull(store.state.benchmarkResult)
+    }
+
+    private fun localStore(
+        downloadManager: FakeModelDownloadManager = FakeModelDownloadManager(),
+        inferenceConnection: FakeLocalInferenceGateway = FakeLocalInferenceGateway(FakeLocalLlmEngine()),
+        modelFileExists: Boolean = false,
+        localModelStateProvider: (() -> LocalModelState)? = null,
+    ) = ArchiveAssistantStateStore(
+        modelDownloadManager = downloadManager,
+        inferenceConnection = inferenceConnection,
+        localModelFileExists = { modelFileExists },
+        localModelStateProvider = localModelStateProvider,
+    )
+
+    private fun waitUntil(assertion: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + 2_000L
+        while (System.currentTimeMillis() < deadline) {
+            // Pump the DefaultExecutor/IO dispatcher's event loop so that
+            // collectLatest coroutines launched from the store's init block
+            // (which run on Dispatchers.IO) get a chance to process flow
+            // emissions before we check state.
+            runBlocking(Dispatchers.IO) { }
+            if (assertion()) return
+            Thread.sleep(10L)
+        }
+        assertTrue(assertion())
+    }
+
+    private class FakeModelDownloadManager : ModelDownloadManager {
+        private val state = MutableStateFlow(LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED))
+        var startCount = 0
+        var cancelCount = 0
+        var modelPresent = false
+
+        override val downloadState: Flow<LocalModelState> = state
+
+        override suspend fun startDownload(model: LocalModelInfo): Result<Unit> {
+            startCount++
+            return Result.success(Unit)
+        }
+
+        override suspend fun cancelDownload() {
+            cancelCount++
+            emit(LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED))
+        }
+
+        override suspend fun deleteModel(model: LocalModelInfo): Result<Unit> = Result.success(Unit)
+
+        override fun isModelPresent(model: LocalModelInfo): Boolean = modelPresent
+
+        fun emit(localModelState: LocalModelState) {
+            state.value = localModelState
+            modelPresent = localModelState.status == LocalModelStatus.DOWNLOADED || modelPresent
+        }
+    }
+
+    private class FakeLocalInferenceGateway(
+        private val engine: LocalLlmEngine?,
+    ) : LocalInferenceGateway {
+        private val state = MutableStateFlow(LocalModelState(status = LocalModelStatus.DOWNLOADED))
+        var bindCount = 0
+        var unbindCount = 0
+        var startCount = 0
+        var stopCount = 0
+        var lastBackend: InferenceBackend? = null
+
+        override val serviceState: Flow<LocalModelState> = state
+
+        override fun bind() {
+            bindCount++
+        }
+
+        override fun unbind() {
+            unbindCount++
+        }
+
+        override fun getEngine(): LocalLlmEngine? = engine
+
+        override fun startModel(model: LocalModelInfo, backend: InferenceBackend) {
+            startCount++
+            lastBackend = backend
+        }
+
+        override fun stopModel() {
+            stopCount++
+        }
+
+        fun emit(localModelState: LocalModelState) {
+            state.value = localModelState
+        }
     }
 }

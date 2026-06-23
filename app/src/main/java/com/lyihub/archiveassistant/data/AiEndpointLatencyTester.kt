@@ -176,6 +176,7 @@ private fun geminiRequest(settings: AiEngineSettings, apiKey: String): AiLatency
 }
 
 private fun localModelRequest(settings: AiEngineSettings): AiLatencyRequest {
+    // Note: in-process LiteRT-LM mode does not use this HTTP latency test path
     val endpoint = apiEndpoint(settings.localEndpoint, "v1/chat/completions")
     val body = jsonObject(
         "model" to jsonString(settings.modelName),

@@ -101,5 +101,5 @@ object SampleKnowledgeData {
         ),
     )
 
-    val defaultAiEngineSettings = AiEngineSettings()
+    val defaultAiEngineSettings = AiEngineSettings(localModelId = GEMMA_4_E4B_IT.id)
 }

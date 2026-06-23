@@ -2,9 +2,12 @@ package com.lyihub.archiveassistant.state
 
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AppPane
+import com.lyihub.archiveassistant.domain.BenchResult
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
 import com.lyihub.archiveassistant.domain.KnowledgeItem
+import com.lyihub.archiveassistant.domain.LocalModelState
+import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.domain.Topic
 
 enum class TopicNameDialogMode {
@@ -44,6 +47,9 @@ data class ArchiveAssistantState(
     val topicValidationMessage: String? = null,
     val modalItem: KnowledgeItem? = null,
     val aiSettings: AiEngineSettings = AiEngineSettings(),
+    val localModelState: LocalModelState = LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED),
+    val benchmarkResult: BenchResult? = null,
+    val isBenchmarkRunning: Boolean = false,
     val topicNameDialogMode: TopicNameDialogMode? = null,
     val topicNameDialogTopicId: String? = null,
     val deleteConfirmTopicId: String? = null,

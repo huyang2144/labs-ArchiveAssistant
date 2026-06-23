@@ -4,20 +4,33 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import android.util.Log
+import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
 import com.lyihub.archiveassistant.data.AppDataRepository
+import com.lyihub.archiveassistant.data.ModelDownloadManager
 import com.lyihub.archiveassistant.domain.AiEngineSettings
+import com.lyihub.archiveassistant.domain.AiEngineType
 import com.lyihub.archiveassistant.domain.AppPane
+import com.lyihub.archiveassistant.domain.BenchResult
 import com.lyihub.archiveassistant.domain.ClassificationResult
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.domain.GEMMA_4_E4B_IT
+import com.lyihub.archiveassistant.domain.InferenceBackend
 import com.lyihub.archiveassistant.domain.KnowledgeItem
+import com.lyihub.archiveassistant.domain.LocalLlmClassifier
+import com.lyihub.archiveassistant.domain.LocalLlmEngine
+import com.lyihub.archiveassistant.domain.LocalModelState
+import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.domain.MockKnowledgeClassifier
 import com.lyihub.archiveassistant.domain.SampleKnowledgeData
 import com.lyihub.archiveassistant.domain.Topic
+import com.lyihub.archiveassistant.service.LocalInferenceGateway
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import java.io.File
 
 class ArchiveAssistantStateStore(
@@ -28,15 +41,19 @@ class ArchiveAssistantStateStore(
         aiSettings = SampleKnowledgeData.defaultAiEngineSettings,
     ),
     private val appDataRepository: AppDataRepository? = null,
+    private val aiSettingsRepository: AiEngineSettingsRepository? = null,
+    private val localLlmEngine: LocalLlmEngine? = null,
+    private val modelDownloadManager: ModelDownloadManager? = null,
+    private val inferenceConnection: LocalInferenceGateway? = null,
+    private val localModelStateProvider: (() -> LocalModelState)? = null,
+    private val localModelFileExists: (() -> Boolean)? = null,
     androidContext: Context? = null,
 ) {
     private val appContext = androidContext
     private val scope = CoroutineScope(Dispatchers.IO)
 
     var state: ArchiveAssistantState by mutableStateOf(
-        resolveMockImagePaths(
-            appDataRepository?.let(::loadPersistedState) ?: initialState
-        )
+        resolveMockImagePaths(initialState)
     )
         private set
 
@@ -45,16 +62,28 @@ class ArchiveAssistantStateStore(
     private var nextTopicIndex = deriveNextTopicIndex(state.topics)
     private var nextItemIndex = deriveNextItemIndex(state.items)
 
-    private fun loadPersistedState(repo: AppDataRepository): ArchiveAssistantState {
-        val persistedTopics = runBlocking { repo.loadTopics() }
-        val persistedItems = runBlocking { repo.loadItems() }
-        return if (persistedTopics.isNotEmpty() || persistedItems.isNotEmpty()) {
-            initialState.copy(
-                topics = persistedTopics,
-                items = persistedItems,
+    init {
+        loadPersistedStateAsync()
+        restoreLocalModelState()
+        observeLocalModelState()
+    }
+
+    private fun loadPersistedStateAsync() {
+        val repo = appDataRepository ?: return
+        scope.launch {
+            val persistedTopics = repo.loadTopics()
+            val persistedItems = repo.loadItems()
+            if (persistedTopics.isEmpty() && persistedItems.isEmpty()) return@launch
+
+            val restoredState = resolveMockImagePaths(
+                state.copy(
+                    topics = persistedTopics,
+                    items = persistedItems,
+                )
             )
-        } else {
-            initialState
+            state = restoredState
+            nextTopicIndex = deriveNextTopicIndex(restoredState.topics)
+            nextItemIndex = deriveNextItemIndex(restoredState.items)
         }
     }
 
@@ -64,6 +93,85 @@ class ArchiveAssistantStateStore(
             repo.saveAll(state.topics, state.items)
         }
     }
+
+    private fun saveAiSettings() {
+        val repo = aiSettingsRepository ?: return
+        val settings = state.aiSettings
+        scope.launch {
+            repo.save(settings)
+        }
+    }
+
+    private fun restoreLocalModelState() {
+        if (state.aiSettings.localModelId != GEMMA_4_E4B_IT.id) {
+            Log.w(TAG, "模型版本已变更，请重新下载")
+            resetLocalModelState()
+            return
+        }
+
+        val modelFile = localModelFile()
+        val modelExists = isLocalModelFilePresent()
+        val restoredState = when {
+            modelExists -> LocalModelState(
+                status = LocalModelStatus.DOWNLOADED,
+                downloadProgress = 1f,
+                downloadBytes = GEMMA_4_E4B_IT.sizeBytes,
+                totalBytes = GEMMA_4_E4B_IT.sizeBytes,
+                modelPath = modelFile?.absolutePath,
+            )
+            else -> LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED)
+        }
+        state = state.copy(localModelState = restoredState)
+    }
+
+    private fun observeLocalModelState() {
+        modelDownloadManager?.let { manager ->
+            scope.launch {
+                manager.downloadState.collectLatest { updateDownloadModelState(it) }
+            }
+        }
+        inferenceConnection?.let { connection ->
+            scope.launch {
+                connection.serviceState.collectLatest { updateInferenceModelState(it) }
+            }
+        }
+    }
+
+    private fun updateDownloadModelState(nextState: LocalModelState) {
+        if (state.localModelState.status in setOf(LocalModelStatus.DOWNLOADED, LocalModelStatus.READY) &&
+            nextState.status == LocalModelStatus.NOT_DOWNLOADED
+        ) {
+            return
+        }
+        if (state.localModelState.status in serviceOwnedStatuses &&
+            nextState.status in setOf(LocalModelStatus.NOT_DOWNLOADED, LocalModelStatus.DOWNLOADED)
+        ) {
+            return
+        }
+        updateLocalModelState(nextState)
+    }
+
+    private fun updateInferenceModelState(nextState: LocalModelState) {
+        updateLocalModelState(nextState)
+    }
+
+    private fun updateLocalModelState(nextState: LocalModelState) {
+        val current = state.localModelState
+        if (nextState.status == LocalModelStatus.DOWNLOADED &&
+            current.status in setOf(LocalModelStatus.NOT_DOWNLOADED, LocalModelStatus.DOWNLOADING, LocalModelStatus.ERROR) &&
+            modelDownloadManager?.isModelPresent(GEMMA_4_E4B_IT) != true
+        ) {
+            return
+        }
+        state = state.copy(localModelState = nextState)
+    }
+
+    private val serviceOwnedStatuses = setOf(
+        LocalModelStatus.INITIALIZING,
+        LocalModelStatus.READY,
+        LocalModelStatus.INFERENCING,
+        LocalModelStatus.STOPPING,
+    )
 
     private fun resolveMockImagePaths(state: ArchiveAssistantState): ArchiveAssistantState {
         val context = appContext ?: return state
@@ -363,9 +471,34 @@ class ArchiveAssistantStateStore(
     }
 
     fun submitParserInput() {
-        when (val result = classifier.classify(state.parserInput, state.topics)) {
+        val currentLocalModelState = localModelStateProvider?.invoke() ?: state.localModelState
+        if (state.aiSettings.engineType == AiEngineType.LOCAL_MODEL && currentLocalModelState.status == LocalModelStatus.INFERENCING) {
+            state = state.copy(parserValidationMessage = "推理进行中")
+            return
+        }
+        if (state.aiSettings.engineType == AiEngineType.LOCAL_MODEL && currentLocalModelState.status != LocalModelStatus.READY) {
+            state = state.copy(parserValidationMessage = "本地模型未就绪，请先开启模型")
+            return
+        }
+
+        if (state.aiSettings.engineType != AiEngineType.LOCAL_MODEL) {
+            handleParserClassificationResult(classifier.classify(state.parserInput, state.topics))
+            return
+        }
+
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            handleParserClassificationResult(classifyParserInput())
+        }
+    }
+
+    private fun handleParserClassificationResult(result: ClassificationResult) {
+        when (result) {
             is ClassificationResult.BlankInput -> {
                 state = state.copy(parserValidationMessage = result.message)
+            }
+
+            is ClassificationResult.Unknown -> {
+                state = state.copy(parserValidationMessage = "分类失败，请输入有效内容")
             }
 
             is ClassificationResult.Classified -> {
@@ -384,19 +517,31 @@ class ArchiveAssistantStateStore(
                     documentFormat = payload.documentFormat,
                     createdAtEpochMillis = now,
                 )
-        state = state.copy(
-            items = state.items + item,
-            topics = state.topics.map { topic ->
-                if (topic.id == payload.topicId) topic.copy(updatedAtEpochMillis = now) else topic
-            },
-            parserInput = "",
-            parserValidationMessage = null,
-            selectedPane = AppPane.DETAIL,
-            selectedTopicId = payload.topicId,
-            activeDetailFilter = ContentType.ALL,
-        )
-        saveData()
+                state = state.copy(
+                    items = state.items + item,
+                    topics = state.topics.map { topic ->
+                        if (topic.id == payload.topicId) topic.copy(updatedAtEpochMillis = now) else topic
+                    },
+                    parserInput = "",
+                    parserValidationMessage = null,
+                    selectedPane = AppPane.DETAIL,
+                    selectedTopicId = payload.topicId,
+                    activeDetailFilter = ContentType.ALL,
+                )
+                saveData()
+            }
+        }
     }
+
+    private suspend fun classifyParserInput(): ClassificationResult {
+        val engine = localLlmEngine ?: inferenceConnection?.getEngine() ?: return ClassificationResult.Unknown
+        state = state.copy(localModelState = state.localModelState.copy(status = LocalModelStatus.INFERENCING))
+        return try {
+            LocalLlmClassifier(engine).classify(state.parserInput, state.topics)
+        } finally {
+            if (state.localModelState.status == LocalModelStatus.INFERENCING) {
+                state = state.copy(localModelState = state.localModelState.copy(status = LocalModelStatus.READY))
+            }
         }
     }
 
@@ -593,7 +738,73 @@ class ArchiveAssistantStateStore(
     }
 
     fun updateAiSettings(settings: AiEngineSettings) {
+        val previous = state.aiSettings
         state = state.copy(aiSettings = settings)
+        saveAiSettings()
+        if (previous.engineType == AiEngineType.LOCAL_MODEL && settings.engineType != AiEngineType.LOCAL_MODEL) {
+            when (state.localModelState.status) {
+                LocalModelStatus.READY,
+                LocalModelStatus.INITIALIZING -> stopModel()
+                LocalModelStatus.DOWNLOADING -> cancelDownload()
+                else -> Unit
+            }
+        }
+    }
+
+    fun downloadModel() {
+        if (state.localModelState.status == LocalModelStatus.DOWNLOADING) return
+        val manager = modelDownloadManager ?: return
+        scope.launch {
+            manager.startDownload(GEMMA_4_E4B_IT)
+        }
+    }
+
+    fun cancelDownload() {
+        val manager = modelDownloadManager ?: return
+        scope.launch {
+            manager.cancelDownload()
+        }
+    }
+
+    fun startModel() {
+        if (state.localModelState.status in setOf(LocalModelStatus.INITIALIZING, LocalModelStatus.READY)) return
+        if (shouldValidateLocalModelFileBeforeStart() &&
+            !isLocalModelFilePresent()
+        ) {
+            resetLocalModelState()
+            state = state.copy(
+                localModelState = LocalModelState(
+                    status = LocalModelStatus.ERROR,
+                    errorMessage = "模型文件不存在，请重新下载",
+                ),
+            )
+            return
+        }
+        val connection = inferenceConnection ?: return
+        connection.bind()
+        connection.startModel(GEMMA_4_E4B_IT, state.aiSettings.localBackendPreference)
+    }
+
+    fun stopModel() {
+        if (state.localModelState.status == LocalModelStatus.STOPPING) return
+        inferenceConnection?.stopModel()
+    }
+
+    fun updateBackendPreference(backend: InferenceBackend) {
+        updateAiSettings(state.aiSettings.copy(localBackendPreference = backend))
+    }
+
+    fun runBenchmark() {
+        if (state.localModelState.status != LocalModelStatus.READY || state.isBenchmarkRunning) return
+        val engine = inferenceConnection?.getEngine() ?: localLlmEngine ?: return
+        state = state.copy(isBenchmarkRunning = true, benchmarkResult = null)
+        scope.launch {
+            val result = engine.benchmark(128, 128)
+            state = state.copy(
+                benchmarkResult = result.getOrNull(),
+                isBenchmarkRunning = false,
+            )
+        }
     }
 
     private fun topicTitleValidationMessage(title: String, currentTopicId: String? = null): String? = when {
@@ -615,6 +826,22 @@ class ArchiveAssistantStateStore(
             !trimmed.any(Char::isWhitespace) &&
             (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("www."))
     }
+
+    private fun localModelFile(): File? = appContext?.let { context ->
+        File(context.filesDir, "models/${GEMMA_4_E4B_IT.fileName}")
+    }
+
+    private fun isLocalModelFilePresent(): Boolean = localModelFileExists?.invoke()
+        ?: localModelFile()?.exists()
+        ?: false
+
+    private fun resetLocalModelState() {
+        state = state.copy(localModelState = LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED))
+    }
+
+    private fun shouldValidateLocalModelFileBeforeStart(): Boolean =
+        state.localModelState.status in setOf(LocalModelStatus.DOWNLOADED, LocalModelStatus.READY) &&
+            (appContext != null || state.localModelState.modelPath != null)
 
     private fun currentClipboardSnapshot(): ClipboardSnapshot? {
         return ClipboardSnapshot(
@@ -658,5 +885,9 @@ class ArchiveAssistantStateStore(
             },
             textContent = content,
         )
+    }
+
+    private companion object {
+        const val TAG = "ArchiveAssistantStateStore"
     }
 }

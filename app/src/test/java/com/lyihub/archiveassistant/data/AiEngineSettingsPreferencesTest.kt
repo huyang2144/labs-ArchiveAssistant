@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.preferencesOf
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
+import com.lyihub.archiveassistant.domain.InferenceBackend
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -65,6 +66,43 @@ class AiEngineSettingsPreferencesTest {
         repository.save(settings)
 
         assertEquals(settings, repository.settings.first())
+    }
+
+    @Test
+    fun newFieldsRoundTrip() {
+        val settings = AiEngineSettings(
+            engineType = AiEngineType.LOCAL_MODEL,
+            baseUrl = "http://localhost:8080",
+            modelName = "gemma-4-E4B",
+            apiKeyAlias = "test",
+            localEndpoint = "http://127.0.0.1:11434",
+            localModelId = "gemma-4-E4B-it-litert-lm",
+            localBackendPreference = InferenceBackend.NPU,
+        )
+        val preferences = mutablePreferencesOf()
+
+        AiEngineSettingsPreferences.encode(settings, preferences)
+        val decoded = AiEngineSettingsPreferences.decode(preferences.toPreferences())
+
+        assertEquals("gemma-4-E4B-it-litert-lm", decoded.localModelId)
+        assertEquals(InferenceBackend.NPU, decoded.localBackendPreference)
+        assertEquals(settings, decoded)
+    }
+
+    @Test
+    fun legacyConfigMigration() {
+        // Write only old keys — no ai_local_model_id or ai_local_backend_pref
+        val preferences = preferencesOf(
+            AiEngineSettingsPreferences.EngineTypeKey to AiEngineType.LOCAL_MODEL.name,
+            AiEngineSettingsPreferences.LocalEndpointKey to "http://old-server:11434",
+        )
+
+        val decoded = AiEngineSettingsPreferences.decode(preferences)
+
+        assertEquals(AiEngineType.LOCAL_MODEL, decoded.engineType)
+        assertEquals("http://old-server:11434", decoded.localEndpoint)
+        assertEquals(null, decoded.localModelId)
+        assertEquals(InferenceBackend.NPU, decoded.localBackendPreference)
     }
 
     private class FakePreferencesDataStore : DataStore<Preferences> {
