@@ -182,7 +182,7 @@ fun HomePane(
 
 @Composable
 private fun MemorialDemoButton(onClick: () -> Unit) {
-    val outline = Color(0xFF9E2F28)
+    val outline = Color(0xFF8A6421)
     val paper = Color(0xFFFFF4D6)
     TextButton(
         onClick = onClick,
@@ -191,7 +191,7 @@ private fun MemorialDemoButton(onClick: () -> Unit) {
             .border(1.dp, outline.copy(alpha = 0.55f), MaterialTheme.shapes.small)
             .testTag("memorial-demo-button"),
         colors = ButtonDefaults.textButtonColors(
-            containerColor = paper.copy(alpha = 0.82f),
+            containerColor = paper.copy(alpha = 0.9f),
             contentColor = outline,
         ),
     ) {

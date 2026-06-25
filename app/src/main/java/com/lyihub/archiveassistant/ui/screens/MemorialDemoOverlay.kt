@@ -18,6 +18,7 @@ import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import android.os.Build
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -27,6 +28,9 @@ import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.animation.LinearInterpolator
 import android.view.animation.PathInterpolator
 import android.widget.OverScroller
 import androidx.activity.compose.BackHandler
@@ -39,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.viewinterop.AndroidView
 import com.lyihub.archiveassistant.R
@@ -109,6 +114,9 @@ private enum class StampCompletion {
 
 private val STAMP_RED = AndroidColor.rgb(178, 37, 31)
 private val STAMP_PAPER = AndroidColor.rgb(247, 240, 219)
+private val IMPERIAL_GOLD = AndroidColor.rgb(166, 126, 45)
+private val IMPERIAL_GOLD_DARK = AndroidColor.rgb(104, 75, 26)
+private val MEMORIAL_INK_BROWN = AndroidColor.rgb(78, 52, 31)
 private const val TOTAL_PENDING_MEMORIALS = 6
 
 private data class PendingMemorialSummary(
@@ -180,6 +188,7 @@ private val directoryItems = listOf(
 fun MemorialDemoOverlay(onDismiss: () -> Unit) {
     val foldView = remember { mutableStateOf<FoldScrollNativeView?>(null) }
     val dismissStarted = remember { mutableStateOf(false) }
+    val hostView = LocalView.current
     val completeDismiss = {
         onDismiss()
     }
@@ -197,8 +206,34 @@ fun MemorialDemoOverlay(onDismiss: () -> Unit) {
     }
 
     BackHandler(onBack = requestDismiss)
-    DisposableEffect(Unit) {
+    DisposableEffect(hostView) {
+        val window = (hostView.context as? android.app.Activity)?.window
+        val previousSystemUiVisibility = window?.decorView?.systemUiVisibility
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window?.insetsController?.let { controller ->
+                controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                controller.systemBarsBehavior =
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window?.decorView?.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                    View.SYSTEM_UI_FLAG_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                )
+        }
         onDispose {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window?.insetsController?.show(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+            }
+            if (previousSystemUiVisibility != null) {
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = previousSystemUiVisibility
+            }
             foldView.value = null
         }
     }
@@ -277,6 +312,10 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         resources,
         R.drawable.memorial_summary_bg,
     )
+    private val coverCornerTexture: Bitmap? = BitmapFactory.decodeResource(
+        resources,
+        R.drawable.memorial_cover_corner,
+    )
     private val heritageTypeface: Typeface = runCatching {
         Typeface.createFromAsset(context.assets, "fonts/ma_shan_zheng_regular.ttf")
     }.getOrElse {
@@ -301,6 +340,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private val summaryImagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
         alpha = 218
     }
+    private val coverCornerPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val dashedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1f
@@ -362,7 +402,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private val goldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1.5f * displayDensity
-        color = AndroidColor.rgb(201, 168, 76)
+        color = IMPERIAL_GOLD
     }
     private val sealPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -398,10 +438,10 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private val toolbarStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1.2f * displayDensity
-        color = AndroidColor.argb(156, 142, 43, 36)
+        color = AndroidColor.argb(178, AndroidColor.red(IMPERIAL_GOLD), AndroidColor.green(IMPERIAL_GOLD), AndroidColor.blue(IMPERIAL_GOLD))
     }
     private val toolbarTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.rgb(142, 43, 36)
+        color = MEMORIAL_INK_BROWN
         textSize = sp(18f)
         typeface = heritageTypeface
         textAlign = Paint.Align.CENTER
@@ -678,7 +718,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     }
 
     private fun handleCoverTouch(event: MotionEvent): Boolean {
-        if (currentStamp != null) return true
+        if (currentStamp != null || coverFinalStamp != null || coverSwipeAnimator != null) return true
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 parent?.requestDisallowInterceptTouchEvent(true)
@@ -908,16 +948,19 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private fun drawCoverStack(canvas: Canvas, cover: ArticleLayout, coverLeft: Float) {
         val remaining = (TOTAL_PENDING_MEMORIALS - coverStackIndex - 1).coerceAtLeast(0)
         val stackCount = min(remaining, 5)
+        val isVerdictLeaving = coverFinalStamp != null || currentStamp != null
         val isLiftingTopCover = currentStamp == null &&
+            !isVerdictLeaving &&
             abs(coverDragX) < 0.5f &&
             abs(coverDragY) < 0.5f &&
             coverStackLiftProgress < 1f
         for (level in stackCount downTo 1) {
             if (isLiftingTopCover && level == 1) continue
-            val offsetX = stackOffsetX(level)
-            val offsetY = stackOffsetY(level)
-            val scale = stackScale(level)
-            val rotation = stackRotation(level)
+            val lift = if (level == 1 && isVerdictLeaving) coverStackLiftProgress.coerceIn(0f, 1f) else 0f
+            val offsetX = stackOffsetX(level) * (1f - lift)
+            val offsetY = stackOffsetY(level) * (1f - lift)
+            val scale = lerp(stackScale(level), 1f, lift)
+            val rotation = stackRotation(level) * (1f - lift)
             val stackRect = RectF(
                 coverLeft + offsetX,
                 cover.top + offsetY,
@@ -1098,17 +1141,17 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         val titlePaint = TextPaint(itemTitlePaint).apply {
             textSize = sp(26f)
             textAlign = Paint.Align.LEFT
-            color = AndroidColor.rgb(55, 35, 25)
+            color = MEMORIAL_INK_BROWN
         }
         val sourcePaint = TextPaint(itemMetaPaint).apply {
             textSize = sp(18f)
             textAlign = Paint.Align.LEFT
-            color = AndroidColor.rgb(132, 91, 48)
+            color = IMPERIAL_GOLD_DARK
         }
         val bodyPaint = TextPaint(authorPaint).apply {
             textSize = sp(20f)
             textAlign = Paint.Align.LEFT
-            color = AndroidColor.rgb(74, 52, 37)
+            color = MEMORIAL_INK_BROWN
         }
 
         val contentWidth = (rect.width() * 0.74f).roundToInt().coerceAtLeast(1)
@@ -1151,7 +1194,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         }
         val completionHintPaint = TextPaint(metaPaint).apply {
             textSize = sp(20f)
-            color = AndroidColor.rgb(142, 43, 36)
+            color = IMPERIAL_GOLD_DARK
         }
 
         val contentWidth = (rect.width() * 0.64f).roundToInt()
@@ -1932,13 +1975,15 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         canvas.drawRect(label, articlePaint)
         articlePaint.color = AndroidColor.WHITE
         canvas.drawRect(label, goldPaint)
-        canvas.drawRect(
-            label.left + dp(6f),
-            label.top + dp(6f),
-            label.right - dp(6f),
-            label.bottom - dp(6f),
-            goldPaint,
+        val innerInset = dp(6f)
+        val innerLabel = RectF(
+            label.left + innerInset,
+            label.top + innerInset,
+            label.right - innerInset,
+            label.bottom - innerInset,
         )
+        canvas.drawRect(innerLabel, goldPaint)
+        drawCoverCornerOrnaments(canvas, innerLabel)
 
         drawVerticalText(
             canvas = canvas,
@@ -1950,6 +1995,42 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         )
         drawCenteredText(canvas, "甲辰年冬月", label.centerX(), label.bottom - dp(26f), metaPaint)
         drawPageNumber(canvas, rect, pageNumber)
+    }
+
+    private fun drawCoverCornerOrnaments(canvas: Canvas, innerLabel: RectF) {
+        val texture = coverCornerTexture ?: return
+        val cornerSize = min(innerLabel.width(), innerLabel.height()) * 0.22f
+        drawCoverCornerOrnament(
+            canvas = canvas,
+            texture = texture,
+            dst = RectF(innerLabel.left, innerLabel.top, innerLabel.left + cornerSize, innerLabel.top + cornerSize),
+            rotation = 0f,
+        )
+        drawCoverCornerOrnament(
+            canvas = canvas,
+            texture = texture,
+            dst = RectF(innerLabel.right - cornerSize, innerLabel.top, innerLabel.right, innerLabel.top + cornerSize),
+            rotation = 90f,
+        )
+        drawCoverCornerOrnament(
+            canvas = canvas,
+            texture = texture,
+            dst = RectF(innerLabel.right - cornerSize, innerLabel.bottom - cornerSize, innerLabel.right, innerLabel.bottom),
+            rotation = 180f,
+        )
+        drawCoverCornerOrnament(
+            canvas = canvas,
+            texture = texture,
+            dst = RectF(innerLabel.left, innerLabel.bottom - cornerSize, innerLabel.left + cornerSize, innerLabel.bottom),
+            rotation = 270f,
+        )
+    }
+
+    private fun drawCoverCornerOrnament(canvas: Canvas, texture: Bitmap, dst: RectF, rotation: Float) {
+        canvas.save()
+        canvas.rotate(rotation, dst.centerX(), dst.centerY())
+        canvas.drawBitmap(texture, null, dst, coverCornerPaint)
+        canvas.restore()
     }
 
     private fun drawDirectoryContent(canvas: Canvas, rect: RectF, pageNumber: String) {
@@ -2396,15 +2477,17 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         }
         coverSwipeAnimator?.cancel()
         coverSwipeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 760L
-            interpolator = PathInterpolator(0.18f, 0f, 0f, 1f)
+            duration = 1500L
+            interpolator = LinearInterpolator()
             addUpdateListener { animator ->
                 val t = animator.animatedValue as Float
-                val stampT = lerp(initialStampStrength, 1f, smoothStep(0f, 0.24f, t))
-                val moveT = smoothStep(0.34f, 1f, t)
+                val stampT = lerp(initialStampStrength, 1f, smoothStep(0f, 0.333f, t))
+                val moveT = smoothStep(0.333f, 1f, t)
+                val nextLiftT = smoothStep(0.44f, 0.86f, t)
                 coverFinalStampStrength = stampT
                 coverPreviewStampStrength = stampT
                 coverPreviewStampTargetStrength = stampT
+                coverStackLiftProgress = nextLiftT
                 coverDragX = lerp(startX, targetX, moveT)
                 coverDragY = lerp(startY, targetY, moveT)
                 invalidate()
@@ -2515,24 +2598,9 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         summaryShownByHold = false
         removeCallbacks(showSummaryRunnable)
         coverSwipeAnimator?.cancel()
-        coverSwipeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 260L
-            interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
-            addUpdateListener { animator ->
-                coverStackLiftProgress = animator.animatedValue as Float
-                invalidate()
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    if (coverSwipeAnimator == animation) {
-                        coverSwipeAnimator = null
-                    }
-                    coverStackLiftProgress = 1f
-                    invalidate()
-                }
-            })
-            start()
-        }
+        coverSwipeAnimator = null
+        coverStackLiftProgress = 1f
+        invalidate()
     }
 
     private fun advanceAfterVerdict() {
