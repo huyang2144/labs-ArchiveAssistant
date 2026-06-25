@@ -747,7 +747,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
                 coverSwipeAnimator?.cancel()
                 removeCallbacks(showSummaryRunnable)
                 val cover = articles.firstOrNull()
-                val coverLeft = cover?.let { foldLeft } ?: 0f
+                val coverLeft = cover?.let { coverStackLeft(it) } ?: 0f
                 coverTouchStartedOnCover = cover?.let {
                     RectF(coverLeft, it.top, coverLeft + it.width, it.top + it.height).contains(event.x, event.y)
                 } ?: false
@@ -925,7 +925,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
 
     private fun drawCoverOnly(canvas: Canvas) {
         val cover = articles.firstOrNull() ?: return
-        val coverLeft = foldLeft
+        val coverLeft = coverStackLeft(cover)
         drawCoverStack(canvas, cover, coverLeft)
         val rotation = (coverDragX / max(1f, foldRight - foldLeft)).coerceIn(-1f, 1f) * 10f
         val isRevealingNextCover = currentStamp == null &&
@@ -968,6 +968,20 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         canvas.restore()
         drawSummaryBubble(canvas, coverLeft, cover)
         drawCoverGestureHint(canvas)
+    }
+
+    private fun coverStackLeft(cover: ArticleLayout): Float {
+        return foldLeft + ((foldRight - foldLeft) - cover.width) / 2f
+    }
+
+    private fun openingAlignmentOffset(): Float {
+        val cover = articles.firstOrNull() ?: return 0f
+        val centeredLeft = coverStackLeft(cover)
+        return centeredLeft - foldLeft
+    }
+
+    private fun openingBaseLeft(): Float {
+        return foldLeft + openingAlignmentOffset() * (1f - openProgress.coerceIn(0f, 1f))
     }
 
     private fun drawCoverStack(canvas: Canvas, cover: ArticleLayout, coverLeft: Float) {
@@ -1742,7 +1756,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private fun buildOpeningPlacements(): List<OpeningPlacement> {
         if (articles.isEmpty()) return emptyList()
         val placements = ArrayList<OpeningPlacement>(articles.size)
-        var chainEdgeX = foldLeft
+        var chainEdgeX = openingBaseLeft()
 
         articles.forEachIndexed { index, article ->
             val rotation = openingRotationFor(index)
@@ -2994,11 +3008,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         openProgress = from.coerceIn(0f, 1f)
         transitionAnimator = ValueAnimator.ofFloat(openProgress, to.coerceIn(0f, 1f)).apply {
             duration = durationMs
-            interpolator = if (to > from) {
-                PathInterpolator(0.16f, 0f, 0f, 1f)
-            } else {
-                PathInterpolator(0.38f, 0f, 1f, 1f)
-            }
+            interpolator = PathInterpolator(0.42f, 0f, 0.58f, 1f)
             addUpdateListener { animator ->
                 openProgress = animator.animatedValue as Float
                 invalidate()
