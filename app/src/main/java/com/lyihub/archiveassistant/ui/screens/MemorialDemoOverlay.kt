@@ -314,6 +314,9 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         resources,
         R.drawable.memorial_button_bg,
     )
+    private val buttonAspectRatio: Float = buttonTexture?.let { texture ->
+        texture.width.toFloat() / texture.height.toFloat()
+    } ?: (413f / 141f)
     private val completionTexture: Bitmap? = BitmapFactory.decodeResource(
         resources,
         R.drawable.memorial_completion_bg,
@@ -1039,34 +1042,34 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private fun drawCoverGestureHint(canvas: Canvas) {
         val bottomGap = dp(12f)
         val buttonHeight = dp(48f)
-        val bottomTotalWidth = min(dp(560f), foldRight - foldLeft - dp(32f))
-        val bottomButtonWidth = (bottomTotalWidth - bottomGap * 2f) / 3f
-        val bottomLeft = foldLeft + ((foldRight - foldLeft) - bottomTotalWidth) / 2f
         val bottomTop = foldBottom - buttonHeight - dp(18f)
-        coverActionLeftRect.set(bottomLeft, bottomTop, bottomLeft + bottomButtonWidth, bottomTop + buttonHeight)
-        coverActionRightRect.set(
-            coverActionLeftRect.right + bottomGap,
-            bottomTop,
-            coverActionLeftRect.right + bottomGap + bottomButtonWidth,
-            bottomTop + buttonHeight,
-        )
-        coverActionKeepRect.set(
-            coverActionRightRect.right + bottomGap,
-            bottomTop,
-            coverActionRightRect.right + bottomGap + bottomButtonWidth,
-            bottomTop + buttonHeight,
+        layoutButtonRow(
+            rects = listOf(coverActionLeftRect, coverActionRightRect, coverActionKeepRect),
+            centerX = foldLeft + (foldRight - foldLeft) / 2f,
+            top = bottomTop,
+            height = buttonHeight,
+            desiredGap = bottomGap,
+            maxWidth = foldRight - foldLeft - dp(32f),
         )
 
         val topTotalWidth = min(dp(430f), foldRight - foldLeft - dp(32f))
-        val topButtonWidth = min(dp(148f), topTotalWidth * 0.35f)
         val topLeft = foldLeft + ((foldRight - foldLeft) - topTotalWidth) / 2f
         val top = foldTop + dp(18f)
-        coverActionSummaryRect.set(topLeft, top, topLeft + topButtonWidth, top + buttonHeight)
-        coverActionOpenRect.set(
-            topLeft + topTotalWidth - topButtonWidth,
-            top,
-            topLeft + topTotalWidth,
-            top + buttonHeight,
+        val topButtonWidth = min(buttonHeight * buttonAspectRatio, topTotalWidth * 0.36f)
+        val topButtonCenterInset = topButtonWidth / 2f
+        layoutAspectButton(
+            rect = coverActionSummaryRect,
+            centerX = topLeft + topButtonCenterInset,
+            top = top,
+            height = buttonHeight,
+            maxWidth = topButtonWidth,
+        )
+        layoutAspectButton(
+            rect = coverActionOpenRect,
+            centerX = topLeft + topTotalWidth - topButtonCenterInset,
+            top = top,
+            height = buttonHeight,
+            maxWidth = topButtonWidth,
         )
 
         drawToolbarButton(canvas, coverActionSummaryRect, "长按看简介")
@@ -1286,35 +1289,80 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     }
 
     private fun drawVerdictToolbar(canvas: Canvas) {
-        val toolbarWidth = min(dp(368f), (foldRight - foldLeft) - dp(72f))
         val toolbarHeight = dp(52f)
-        val toolbarLeft = foldLeft + ((foldRight - foldLeft) - toolbarWidth) / 2f
         val toolbarTop = foldBottom - toolbarHeight - dp(18f)
         val gap = dp(18f)
-        val buttonWidth = (toolbarWidth - gap) / 2f
-        toolbarButtonRect1.set(
-            toolbarLeft,
-            toolbarTop,
-            toolbarLeft + buttonWidth,
-            toolbarTop + toolbarHeight,
-        )
-        toolbarButtonRect2.set(
-            toolbarButtonRect1.right + gap,
-            toolbarButtonRect1.top,
-            toolbarButtonRect1.right + gap + buttonWidth,
-            toolbarButtonRect1.bottom,
+        layoutButtonRow(
+            rects = listOf(toolbarButtonRect1, toolbarButtonRect2),
+            centerX = foldLeft + (foldRight - foldLeft) / 2f,
+            top = toolbarTop,
+            height = toolbarHeight,
+            desiredGap = gap,
+            maxWidth = foldRight - foldLeft - dp(72f),
         )
         drawToolbarButton(canvas, toolbarButtonRect1, "朕喜欢")
         drawToolbarButton(canvas, toolbarButtonRect2, "朕不喜欢")
     }
 
     private fun drawCollapseButton(canvas: Canvas) {
-        val buttonWidth = dp(124f)
         val buttonHeight = dp(42f)
-        val left = foldLeft + ((foldRight - foldLeft) - buttonWidth) / 2f
         val top = foldTop + dp(18f)
-        collapseButtonRect.set(left, top, left + buttonWidth, top + buttonHeight)
+        layoutAspectButton(
+            rect = collapseButtonRect,
+            centerX = foldLeft + (foldRight - foldLeft) / 2f,
+            top = top,
+            height = buttonHeight,
+            maxWidth = foldRight - foldLeft - dp(72f),
+        )
         drawToolbarButton(canvas, collapseButtonRect, "收起")
+    }
+
+    private fun layoutButtonRow(
+        rects: List<RectF>,
+        centerX: Float,
+        top: Float,
+        height: Float,
+        desiredGap: Float,
+        maxWidth: Float,
+    ) {
+        if (rects.isEmpty()) return
+        val desiredButtonWidth = height * buttonAspectRatio
+        val desiredTotalWidth = desiredButtonWidth * rects.size + desiredGap * (rects.size - 1)
+        val scale = if (desiredTotalWidth > maxWidth && desiredTotalWidth > 0f) {
+            (maxWidth / desiredTotalWidth).coerceIn(0f, 1f)
+        } else {
+            1f
+        }
+        val buttonHeight = height * scale
+        val buttonWidth = buttonHeight * buttonAspectRatio
+        val gap = desiredGap * scale
+        val totalWidth = buttonWidth * rects.size + gap * (rects.size - 1)
+        val rectTop = top + (height - buttonHeight) / 2f
+        var left = centerX - totalWidth / 2f
+        rects.forEach { rect ->
+            rect.set(left, rectTop, left + buttonWidth, rectTop + buttonHeight)
+            left += buttonWidth + gap
+        }
+    }
+
+    private fun layoutAspectButton(
+        rect: RectF,
+        centerX: Float,
+        top: Float,
+        height: Float,
+        maxWidth: Float,
+    ) {
+        val desiredWidth = height * buttonAspectRatio
+        val scale = if (desiredWidth > maxWidth && desiredWidth > 0f) {
+            (maxWidth / desiredWidth).coerceIn(0f, 1f)
+        } else {
+            1f
+        }
+        val buttonHeight = height * scale
+        val width = buttonHeight * buttonAspectRatio
+        val left = centerX - width / 2f
+        val rectTop = top + (height - buttonHeight) / 2f
+        rect.set(left, rectTop, left + width, rectTop + buttonHeight)
     }
 
     private fun drawToolbarButton(canvas: Canvas, rect: RectF, label: String) {
