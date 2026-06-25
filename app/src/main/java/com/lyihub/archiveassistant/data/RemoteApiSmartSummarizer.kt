@@ -87,7 +87,24 @@ class RemoteApiSmartSummarizer(
         request: SmartSummarizeRequest,
         normalizedInput: String,
         materialContext: MaterialContext,
-    ): String = """
+    ): String {
+        val fetchedBlock = request.fetchedWebContext?.let { ctx ->
+            """
+已获取的网页内容：
+原始 URL：${ctx.originalUrl}
+网页标题：${ctx.title}
+网页描述：${ctx.description}
+网页正文：${ctx.bodyText}
+
+注意：禁止只根据 URL 猜测标题或摘要。
+当 contentType 为 WEB_ARTICLE 时，title 必须使用上述网页标题（来自已获取的网页元数据/内容），不要发明摘要式的标题。
+summary 必须基于上述网页正文/描述生成。
+sourceUrl 必须等于原始 URL。
+
+""".trimIndent()
+        }.orEmpty()
+
+        return """
         你是一个归档助手。请只基于用户原始输入和给定素材上下文进行智能总结。
         你必须从现有主题中选择且只能选择一个 topicId，topicId 必须是下列已有 ID 之一，禁止创建新主题或返回主题名称。
 
@@ -95,7 +112,7 @@ class RemoteApiSmartSummarizer(
         来源 URL（如有）：${request.sourceUrl.orEmpty()}
         来源标题（如有）：${request.sourceTitle.orEmpty()}
 
-        现有主题：
+        ${fetchedBlock}现有主题：
         ${materialContext.topicOptions.joinToString("\n") { "- id=${it.id}; title=${it.title}" }}
 
         相关已归档素材（仅作参考，不要复制为原文）：
@@ -109,6 +126,7 @@ class RemoteApiSmartSummarizer(
         只返回严格 JSON 对象，不要 Markdown，不要解释，不要额外字段：
         {"topicId":"现有主题ID","contentType":"WEB_ARTICLE","tag":"简短标签","title":"简洁标题","summary":"一句话摘要","sourceUrl":"来源URL或空字符串","documentFormat":"PDF"}
     """.trimIndent()
+    }
 
     private fun JSONObject.requiredString(name: String): String {
         require(has(name) && !isNull(name))

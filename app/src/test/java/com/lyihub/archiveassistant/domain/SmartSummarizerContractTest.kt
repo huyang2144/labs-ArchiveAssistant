@@ -167,6 +167,89 @@ class SmartSummarizerContractTest {
     }
 
     // -----------------------------------------------------------------------
+    // FetchedWebContext — domain-owned web fetch context
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `fetchedWebContext defaults to null when not provided`() {
+        val request = SmartSummarizeRequest(rawText = "just text")
+
+        assertNull(request.fetchedWebContext)
+    }
+
+    @Test
+    fun `fetchedWebContext carries original URL, title, description, and body`() {
+        val context = FetchedWebContext(
+            originalUrl = "https://example.com/article",
+            title = "Example Article Title",
+            description = "A short meta description.",
+            bodyText = "This is the visible body text of the article.",
+        )
+        val request = SmartSummarizeRequest(
+            rawText = "https://example.com/article",
+            fetchedWebContext = context,
+        )
+
+        assertNotNull(request.fetchedWebContext)
+        assertEquals("https://example.com/article", request.fetchedWebContext!!.originalUrl)
+        assertEquals("Example Article Title", request.fetchedWebContext!!.title)
+        assertEquals("A short meta description.", request.fetchedWebContext!!.description)
+        assertEquals("This is the visible body text of the article.", request.fetchedWebContext!!.bodyText)
+    }
+
+    // -----------------------------------------------------------------------
+    // Raw-input invariant: fetched body must never replace rawText
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `toClassificationPayload uses rawText not fetched body`() {
+        val context = FetchedWebContext(
+            originalUrl = "https://example.com/article",
+            title = "Article Title",
+            description = "Meta desc.",
+            bodyText = "Fetched body content that should NOT leak into rawInput.",
+        )
+        val request = SmartSummarizeRequest(
+            rawText = "user typed this input",
+            fetchedWebContext = context,
+        )
+
+        val result = SmartSummarizeResult.Success(
+            topicId = "topic-1",
+            contentType = ContentType.WEB_ARTICLE,
+            tag = "网页",
+            title = "Article Title",
+            summary = "AI-generated summary.",
+            documentFormat = DocumentFormat.UNKNOWN,
+        )
+        val payload = result.toClassificationPayload(request.rawText)
+
+        assertEquals("user typed this input", payload.rawInput)
+        assertTrue(payload.rawInput != context.bodyText)
+    }
+
+    @Test
+    fun `request with fetchedWebContext preserves rawText sourceUrl sourceTitle`() {
+        val context = FetchedWebContext(
+            originalUrl = "https://example.com/article",
+            title = "Article Title",
+            description = "Meta desc.",
+            bodyText = "Full visible body text.",
+        )
+        val request = SmartSummarizeRequest(
+            rawText = "original clipboard content",
+            sourceUrl = "https://example.com",
+            sourceTitle = "Example Page",
+            fetchedWebContext = context,
+        )
+
+        assertEquals("original clipboard content", request.rawText)
+        assertEquals("https://example.com", request.sourceUrl)
+        assertEquals("Example Page", request.sourceTitle)
+        assertEquals(context, request.fetchedWebContext)
+    }
+
+    // -----------------------------------------------------------------------
     // Interface contract compiles (satisfied by any future impl)
     // -----------------------------------------------------------------------
 

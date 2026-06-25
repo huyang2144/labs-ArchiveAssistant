@@ -10,6 +10,9 @@ import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
 import com.lyihub.archiveassistant.data.AppDataRepository
 import com.lyihub.archiveassistant.data.ModelDownloadManager
 import com.lyihub.archiveassistant.data.RemoteApiSmartSummarizer
+import com.lyihub.archiveassistant.data.DefaultWebPageContentFetcher
+import com.lyihub.archiveassistant.data.WebPageContentFetcher
+import com.lyihub.archiveassistant.data.WebPageContentFetchResult
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
 import com.lyihub.archiveassistant.domain.AppPane
@@ -17,6 +20,7 @@ import com.lyihub.archiveassistant.domain.BenchResult
 import com.lyihub.archiveassistant.domain.ClassificationResult
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.domain.FetchedWebContext
 import com.lyihub.archiveassistant.domain.GEMMA_4_E4B_IT
 import com.lyihub.archiveassistant.domain.InferenceBackend
 import com.lyihub.archiveassistant.domain.KnowledgeItem
@@ -31,6 +35,7 @@ import com.lyihub.archiveassistant.domain.SmartSummarizeRequest
 import com.lyihub.archiveassistant.domain.SmartSummarizeResult
 import com.lyihub.archiveassistant.domain.SmartSummarizer
 import com.lyihub.archiveassistant.domain.Topic
+import com.lyihub.archiveassistant.domain.WebUrlDetector
 import com.lyihub.archiveassistant.service.LocalInferenceGateway
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +59,7 @@ class ArchiveAssistantStateStore(
     private val localModelFileExists: (() -> Boolean)? = null,
     smartSummarizer: SmartSummarizer? = null,
     private val remoteSmartSummarizerFactory: (AiEngineSettings) -> SmartSummarizer = ::RemoteApiSmartSummarizer,
+    private val webPageContentFetcher: WebPageContentFetcher = DefaultWebPageContentFetcher(),
     androidContext: Context? = null,
 ) {
     private val appContext = androidContext
@@ -535,16 +541,19 @@ class ArchiveAssistantStateStore(
     }
 
     private suspend fun summarizeRawInput(rawInput: String): SmartSummarizeResult {
+        val request = createSmartSummarizeRequest(rawInput).getOrElse { reason ->
+            return SmartSummarizeResult.Failure("网页内容获取失败：${reason.message.orEmpty()}")
+        }
+
         if (state.aiSettings.engineType != AiEngineType.LOCAL_MODEL) {
             val summarizer = smartSummarizer ?: remoteSmartSummarizerFactory(state.aiSettings)
             return summarizer.summarize(
-                SmartSummarizeRequest(rawText = rawInput),
+                request,
                 state.topics,
                 state.items,
             )
         }
 
-        val request = SmartSummarizeRequest(rawText = rawInput)
         val directEngine = localLlmEngine
         state = state.copy(localModelState = state.localModelState.copy(status = LocalModelStatus.INFERENCING))
         return try {
@@ -557,6 +566,31 @@ class ArchiveAssistantStateStore(
         } finally {
             if (state.localModelState.status == LocalModelStatus.INFERENCING) {
                 state = state.copy(localModelState = state.localModelState.copy(status = LocalModelStatus.READY))
+            }
+        }
+    }
+
+    private suspend fun createSmartSummarizeRequest(rawInput: String): Result<SmartSummarizeRequest> {
+        val detected = WebUrlDetector.detect(rawInput)
+            ?: return Result.success(SmartSummarizeRequest(rawText = rawInput))
+
+        return when (val fetched = webPageContentFetcher.fetch(detected.originalUrl, detected.fetchUrl)) {
+            is WebPageContentFetchResult.Failure -> Result.failure(WebPageFetchException(fetched.message))
+            is WebPageContentFetchResult.Success -> {
+                val content = fetched.content
+                Result.success(
+                    SmartSummarizeRequest(
+                        rawText = rawInput,
+                        sourceUrl = detected.originalUrl,
+                        sourceTitle = content.title,
+                        fetchedWebContext = FetchedWebContext(
+                            originalUrl = detected.originalUrl,
+                            title = content.title,
+                            description = content.description,
+                            bodyText = content.bodyText,
+                        ),
+                    )
+                )
             }
         }
     }
@@ -1037,5 +1071,7 @@ class ArchiveAssistantStateStore(
         const val SMART_SUMMARIZER_UNAVAILABLE_MESSAGE = "智能总结不可用，请先配置真实 AI 引擎"
         const val LOCAL_AI_UNAVAILABLE_MESSAGE = "本地 AI 不可用，请先开启模型"
     }
+
+    private class WebPageFetchException(message: String) : Exception(message)
 
 }

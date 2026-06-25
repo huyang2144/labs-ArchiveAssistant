@@ -4,6 +4,7 @@ import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.domain.FetchedWebContext
 import com.lyihub.archiveassistant.domain.SampleKnowledgeData
 import com.lyihub.archiveassistant.domain.SmartSummarizeRequest
 import com.lyihub.archiveassistant.domain.SmartSummarizeResult
@@ -106,6 +107,45 @@ class RemoteApiSmartSummarizerTest {
         val result = summarizer.summarize(SmartSummarizeRequest("content"), SampleKnowledgeData.topics)
 
         assertEquals(SmartSummarizeResult.Failure("远程 AI 请求失败：HTTP 401"), result)
+    }
+
+    @Test
+    fun summarize_withFetchedWebContext_includesContextInRequestBody() = runBlocking {
+        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(
+                engineType = AiEngineType.OPENAI_COMPATIBLE,
+                baseUrl = "https://api.example.com/v1",
+                modelName = "gpt-4",
+                apiKey = "sk-test",
+            ),
+            transport,
+        )
+        val context = FetchedWebContext(
+            originalUrl = "https://example.com/article",
+            title = "Fetched Article Title",
+            description = "Fetched article description",
+            bodyText = "Fetched article body with useful content for summarization.",
+        )
+
+        val result = summarizer.summarize(
+            SmartSummarizeRequest(
+                rawText = "https://example.com/article",
+                sourceUrl = "https://example.com/article",
+                sourceTitle = "Article",
+                fetchedWebContext = context,
+            ),
+            SampleKnowledgeData.topics,
+        )
+
+        assertTrue(result is SmartSummarizeResult.Success)
+        val request = transport.calls.single()
+        assertTrue(request.body!!.contains("https://example.com/article"))
+        assertTrue(request.body.contains("Fetched Article Title"))
+        assertTrue(request.body.contains("Fetched article description"))
+        assertTrue(request.body.contains("Fetched article body with useful content for summarization."))
+        assertTrue(request.body.contains("禁止只根据 URL 猜测标题或摘要"))
+        assertTrue(request.body.contains("sourceUrl 必须等于原始 URL"))
     }
 
     private class FakeRemoteTransport(

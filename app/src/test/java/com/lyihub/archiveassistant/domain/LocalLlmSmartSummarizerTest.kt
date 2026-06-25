@@ -118,6 +118,39 @@ class LocalLlmSmartSummarizerTest {
     }
 
     @Test
+    fun promptIncludesFetchedWebContextWhenAvailable() = runTest {
+        val engine = initializedEngine(
+            """{"topicId":"topic-ai","contentType":"WEB_ARTICLE","tag":"网页","title":"From Fetched Title","summary":"Based on fetched body.","sourceUrl":"https://example.com/article","documentFormat":"UNKNOWN"}""",
+        )
+        val summarizer = LocalLlmSmartSummarizer(engine)
+        val context = FetchedWebContext(
+            originalUrl = "https://example.com/article",
+            title = "Original Article Title",
+            description = "A description of the article.",
+            bodyText = "This is the full fetched body text of the article. It contains useful information for summarization.",
+        )
+
+        summarizer.summarize(
+            SmartSummarizeRequest(
+                rawText = "https://example.com/article",
+                sourceUrl = "https://example.com/article",
+                sourceTitle = "Some title",
+                fetchedWebContext = context,
+            ),
+            topics,
+            existingItems,
+        )
+
+        val prompt = engine.lastPrompt.orEmpty()
+        assertTrue(prompt.contains("https://example.com/article"))
+        assertTrue(prompt.contains("Original Article Title"))
+        assertTrue(prompt.contains("A description of the article."))
+        assertTrue(prompt.contains("This is the full fetched body text of the article."))
+        assertTrue(prompt.contains("禁止只根据 URL 猜测标题或摘要"))
+        assertTrue(prompt.contains("sourceUrl 必须等于原始 URL"))
+    }
+
+    @Test
     fun malformedJsonReturnsFailure() = runTest {
         val result = summarizerReturning("not json").summarize(SmartSummarizeRequest("content"), topics)
 

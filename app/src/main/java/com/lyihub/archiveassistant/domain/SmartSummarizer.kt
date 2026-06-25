@@ -1,17 +1,42 @@
 package com.lyihub.archiveassistant.domain
 
 /**
+ * Fetched web context that can optionally accompany a [SmartSummarizeRequest].
+ *
+ * This is a domain-owned type decoupled from the data-layer
+ * [FetchedWebPageContent]. It carries only the fields relevant to
+ * prompt construction and summarization: the original URL that was
+ * fetched, and the extracted title, description, and body text.
+ *
+ * @property originalUrl  The URL that was originally detected and fetched.
+ * @property title  Extracted page title (meta/h1).
+ * @property description  Extracted page description (meta description/og:description).
+ * @property bodyText  Extracted visible body text (up to ~12 K chars).
+ */
+data class FetchedWebContext(
+    val originalUrl: String,
+    val title: String,
+    val description: String,
+    val bodyText: String,
+)
+
+/**
  * Request for smart summarization.
  * Carries only original user/clipboard input — never model output.
  *
  * @property rawText  Original user or clipboard input (never from model output).
  * @property sourceUrl  Optional source URL for clipboard/shared content.
  * @property sourceTitle  Optional source title for contextual reference.
+ * @property fetchedWebContext  Optional web context from a fetch operation.
+ *                              When present, the fetched body provides
+ *                              supplementary context for the summarizer
+ *                              prompt but MUST NOT replace [rawText].
  */
 data class SmartSummarizeRequest(
     val rawText: String,
     val sourceUrl: String? = null,
     val sourceTitle: String? = null,
+    val fetchedWebContext: FetchedWebContext? = null,
 )
 
 /**
