@@ -19,7 +19,6 @@ class MockKnowledgeClassifier(
             ClassificationPayload(
                 topicId = topic.id,
                 contentType = contentType,
-                tag = tagFor(contentType),
                 title = titleFor(normalizedInput),
                 summary = normalizedInput.take(96),
                 rawInput = normalizedInput,
@@ -74,13 +73,6 @@ class MockKnowledgeClassifier(
         ?.trim()
         ?.take(28)
         ?: "提取内容"
-
-    private fun tagFor(contentType: ContentType): String = when (contentType) {
-        ContentType.ALL -> "全部"
-        ContentType.WEB_ARTICLE -> "网页"
-        ContentType.IMAGE_SCREENSHOT -> "图像"
-        ContentType.DOCUMENT -> "文档"
-    }
 
     private companion object {
         val urlRegex = Regex("https?://\\S+|www\\.\\S+")

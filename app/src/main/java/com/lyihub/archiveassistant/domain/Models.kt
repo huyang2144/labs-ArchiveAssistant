@@ -12,7 +12,6 @@ data class KnowledgeItem(
     val id: String,
     val topicId: String,
     val contentType: ContentType,
-    val tag: String,
     val title: String,
     val summary: String,
     val fullText: String,
@@ -125,7 +124,6 @@ enum class AppPane {
 data class ClassificationPayload(
     val topicId: String,
     val contentType: ContentType,
-    val tag: String,
     val title: String,
     val summary: String,
     val rawInput: String,

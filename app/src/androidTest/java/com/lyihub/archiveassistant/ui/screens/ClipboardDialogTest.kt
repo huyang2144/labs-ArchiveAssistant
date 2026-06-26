@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.lyihub.archiveassistant.domain.DocumentFormat
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -86,5 +87,22 @@ class ClipboardDialogTest {
             )
         }
         composeRule.onNodeWithText("归纳出错").assertIsDisplayed()
+    }
+
+    @Test
+    fun clipboardDialog_pdfOnly_showsFileNameAndTypeLabel() {
+        composeRule.setContent {
+            ClipboardDialog(
+                content = "",
+                sourceLabel = "拖拽",
+                sourceFileName = "report.pdf",
+                sourceDocumentFormat = DocumentFormat.PDF,
+                onSummarize = {},
+                onManualCreate = {},
+                onDismiss = {},
+            )
+        }
+        composeRule.onNodeWithText("report.pdf").assertIsDisplayed()
+        composeRule.onNodeWithText("PDF 文档").assertIsDisplayed()
     }
 }

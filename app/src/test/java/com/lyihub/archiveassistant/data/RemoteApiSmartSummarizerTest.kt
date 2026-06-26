@@ -4,7 +4,9 @@ import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.domain.FetchedDocumentContext
 import com.lyihub.archiveassistant.domain.FetchedWebContext
+import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.domain.SampleKnowledgeData
 import com.lyihub.archiveassistant.domain.SmartSummarizeRequest
 import com.lyihub.archiveassistant.domain.SmartSummarizeResult
@@ -38,6 +40,52 @@ class RemoteApiSmartSummarizerTest {
         assertEquals("https://api.example.com/v1/chat/completions", request.endpoint)
         assertEquals("Bearer sk-test", request.headers["Authorization"])
         assertTrue(request.body!!.contains("AI Agent paper"))
+    }
+
+    @Test
+    fun summarize_promptIncludesTopicOptionsOnlyAndNoExistingItemSnippets() = runBlocking {
+        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(
+                engineType = AiEngineType.OPENAI_COMPATIBLE,
+                baseUrl = "https://api.example.com/v1",
+                modelName = "gpt-4",
+                apiKey = "sk-test",
+            ),
+            transport,
+        )
+        val existingItems = listOf(
+            KnowledgeItem(
+                id = "item-existing",
+                topicId = SampleKnowledgeData.DefaultTopicId,
+                contentType = ContentType.DOCUMENT,
+                title = "Existing private note",
+                summary = "Existing summary should not enter prompt",
+                fullText = "Existing full text should not enter prompt",
+                sourceUrl = null,
+                documentFormat = DocumentFormat.PDF,
+                createdAtEpochMillis = 1L,
+            ),
+        )
+
+        val result = summarizer.summarize(
+            SmartSummarizeRequest("AI Agent paper"),
+            SampleKnowledgeData.topics,
+            existingItems,
+        )
+
+        assertTrue(result is SmartSummarizeResult.Success)
+        val body = transport.calls.single().body.orEmpty()
+        assertTrue(body.contains("现有主题"))
+        assertTrue(body.contains(SampleKnowledgeData.DefaultTopicId))
+        assertTrue(body.contains("大模型架构研究"))
+        assertTrue(!body.contains("相关已归档素材"))
+        assertTrue(!body.contains("selectedSnippets"))
+        assertTrue(!body.contains("item-existing"))
+        assertTrue(!body.contains("Existing private note"))
+        assertTrue(!body.contains("Existing summary should not enter prompt"))
+        assertTrue(!body.contains("Existing full text should not enter prompt"))
+        assertTrue(!body.contains("\"tag\""))
     }
 
     @Test
@@ -148,6 +196,65 @@ class RemoteApiSmartSummarizerTest {
         assertTrue(request.body.contains("sourceUrl 必须等于原始 URL"))
     }
 
+    @Test
+    fun summarize_withFetchedDocumentContext_includesContextInRequestBody() = runBlocking {
+        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(
+                engineType = AiEngineType.OPENAI_COMPATIBLE,
+                baseUrl = "https://api.example.com/v1",
+                modelName = "gpt-4",
+                apiKey = "sk-test",
+            ),
+            transport,
+        )
+        val context = FetchedDocumentContext(
+            fileName = "note.md",
+            format = DocumentFormat.MARKDOWN,
+            extractedText = "# Note\nImportant document text.",
+            originalCharCount = 128,
+            isTruncated = false,
+        )
+
+        val result = summarizer.summarize(
+            SmartSummarizeRequest(
+                rawText = "note.md",
+                fetchedDocumentContext = context,
+            ),
+            SampleKnowledgeData.topics,
+        )
+
+        assertTrue(result is SmartSummarizeResult.Success)
+        val request = transport.calls.single()
+        assertTrue(request.body!!.contains("已解析的文档内容"))
+        assertTrue(request.body.contains("note.md"))
+        assertTrue(request.body.contains("文档格式：MARKDOWN"))
+        assertTrue(request.body.contains("Important document text."))
+    }
+
+    @Test
+    fun summarize_openAiCompatible_extractsJsonFromWrappedModelText() = runBlocking {
+        val wrappedOutput = """
+            下面是归纳结果：
+            ${summaryJson()}
+            如需继续处理，请告诉我。
+        """.trimIndent()
+        val transport = FakeRemoteTransport(openAiCompatibleBody(wrappedOutput))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(
+                engineType = AiEngineType.OPENAI_COMPATIBLE,
+                baseUrl = "https://api.example.com/v1",
+                modelName = "gpt-4",
+            ),
+            transport,
+        )
+
+        val result = summarizer.summarize(SmartSummarizeRequest("note.docx"), SampleKnowledgeData.topics)
+
+        assertTrue(result is SmartSummarizeResult.Success)
+        assertEquals("Agent 论文", (result as SmartSummarizeResult.Success).title)
+    }
+
     private class FakeRemoteTransport(
         private val body: String,
         private val code: Int = 200,
@@ -164,8 +271,8 @@ class RemoteApiSmartSummarizerTest {
         """{"choices":[{"message":{"content":${jsonString(content)}}}]}"""
 
     private fun summaryJson(): String =
-        """{"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"DOCUMENT","tag":"论文","title":"Agent 论文","summary":"介绍 Agent 记忆与工具使用。","sourceUrl":"","documentFormat":"MARKDOWN"}"""
+        """{"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"DOCUMENT","title":"Agent 论文","summary":"介绍 Agent 记忆与工具使用。","sourceUrl":"","documentFormat":"MARKDOWN"}"""
 
     private fun jsonString(value: String): String =
-        "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        "\"${value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\""
 }

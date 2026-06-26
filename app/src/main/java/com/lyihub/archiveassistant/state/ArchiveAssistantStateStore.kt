@@ -8,9 +8,12 @@ import androidx.compose.runtime.setValue
 import android.util.Log
 import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
 import com.lyihub.archiveassistant.data.AppDataRepository
+import com.lyihub.archiveassistant.data.DefaultDocumentContentExtractor
 import com.lyihub.archiveassistant.data.ModelDownloadManager
 import com.lyihub.archiveassistant.data.RemoteApiSmartSummarizer
 import com.lyihub.archiveassistant.data.DefaultWebPageContentFetcher
+import com.lyihub.archiveassistant.data.DocumentContentExtractionResult
+import com.lyihub.archiveassistant.data.DocumentContentExtractor
 import com.lyihub.archiveassistant.data.WebPageContentFetcher
 import com.lyihub.archiveassistant.data.WebPageContentFetchResult
 import com.lyihub.archiveassistant.domain.AiEngineSettings
@@ -20,6 +23,7 @@ import com.lyihub.archiveassistant.domain.BenchResult
 import com.lyihub.archiveassistant.domain.ClassificationResult
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.domain.FetchedDocumentContext
 import com.lyihub.archiveassistant.domain.FetchedWebContext
 import com.lyihub.archiveassistant.domain.GEMMA_4_E4B_IT
 import com.lyihub.archiveassistant.domain.InferenceBackend
@@ -60,9 +64,12 @@ class ArchiveAssistantStateStore(
     smartSummarizer: SmartSummarizer? = null,
     private val remoteSmartSummarizerFactory: (AiEngineSettings) -> SmartSummarizer = ::RemoteApiSmartSummarizer,
     private val webPageContentFetcher: WebPageContentFetcher = DefaultWebPageContentFetcher(),
+    documentContentExtractor: DocumentContentExtractor? = null,
     androidContext: Context? = null,
 ) {
     private val appContext = androidContext
+    private val documentContentExtractor = documentContentExtractor
+        ?: androidContext?.let(::DefaultDocumentContentExtractor)
     private val scope = CoroutineScope(Dispatchers.IO)
     private val smartSummarizer: SmartSummarizer? = smartSummarizer
         ?: localLlmEngine?.let(::LocalLlmSmartSummarizer)
@@ -355,7 +362,6 @@ class ArchiveAssistantStateStore(
             id = "item-user-$itemIndex",
             topicId = topicId,
             contentType = contentType,
-            tag = contentType.label,
             title = normalizedTitle,
             summary = finalSummary,
             fullText = finalSummary,
@@ -449,7 +455,6 @@ class ArchiveAssistantStateStore(
         val finalSummary = if (useAiSummary) "" else normalizedSummary
         val updatedItem = originalItem.copy(
             contentType = contentType,
-            tag = contentType.label,
             title = normalizedTitle,
             summary = finalSummary,
             fullText = finalSummary,
@@ -542,7 +547,8 @@ class ArchiveAssistantStateStore(
 
     private suspend fun summarizeRawInput(rawInput: String): SmartSummarizeResult {
         val request = createSmartSummarizeRequest(rawInput).getOrElse { reason ->
-            return SmartSummarizeResult.Failure("网页内容获取失败：${reason.message.orEmpty()}")
+            val prefix = if (reason is DocumentExtractionException) "文档内容解析失败" else "网页内容获取失败"
+            return SmartSummarizeResult.Failure("$prefix：${reason.message.orEmpty()}")
         }
 
         if (state.aiSettings.engineType != AiEngineType.LOCAL_MODEL) {
@@ -571,6 +577,10 @@ class ArchiveAssistantStateStore(
     }
 
     private suspend fun createSmartSummarizeRequest(rawInput: String): Result<SmartSummarizeRequest> {
+        documentSummarizeSource()?.let { source ->
+            return createDocumentSmartSummarizeRequest(rawInput, source)
+        }
+
         val detected = WebUrlDetector.detect(rawInput)
             ?: return Result.success(SmartSummarizeRequest(rawText = rawInput))
 
@@ -588,6 +598,34 @@ class ArchiveAssistantStateStore(
                             title = content.title,
                             description = content.description,
                             bodyText = content.bodyText,
+                        ),
+                    )
+                )
+            }
+        }
+    }
+
+    private suspend fun createDocumentSmartSummarizeRequest(
+        rawInput: String,
+        source: DocumentSummarizeSource,
+    ): Result<SmartSummarizeRequest> {
+        val extractor = documentContentExtractor
+            ?: return Result.failure(DocumentExtractionException("文档解析不可用"))
+        return when (val extracted = extractor.extract(source.uri, source.format, source.fileName)) {
+            is DocumentContentExtractionResult.Failure -> Result.failure(DocumentExtractionException(extracted.message))
+            is DocumentContentExtractionResult.Success -> {
+                val content = extracted.content
+                Result.success(
+                    SmartSummarizeRequest(
+                        rawText = rawInput,
+                        sourceUrl = source.uri.toString(),
+                        sourceTitle = content.fileName,
+                        fetchedDocumentContext = FetchedDocumentContext(
+                            fileName = content.fileName,
+                            format = content.format,
+                            extractedText = content.extractedText,
+                            originalCharCount = content.originalCharCount,
+                            isTruncated = content.isTruncated,
                         ),
                     )
                 )
@@ -632,7 +670,6 @@ class ArchiveAssistantStateStore(
             id = "item-classified-$itemIndex",
             topicId = result.topicId,
             contentType = result.contentType,
-            tag = result.tag,
             title = result.title,
             summary = result.summary,
             fullText = rawInput,
@@ -690,7 +727,6 @@ class ArchiveAssistantStateStore(
                     id = "item-classified-$itemIndex",
                     topicId = payload.topicId,
                     contentType = payload.contentType,
-                    tag = payload.tag,
                     title = payload.title,
                     summary = payload.summary,
                     fullText = payload.rawInput,
@@ -874,7 +910,7 @@ class ArchiveAssistantStateStore(
     }
 
     fun acceptClipboardAndSummarize() {
-        val content = state.clipboardContent ?: return
+        val content = state.clipboardContent ?: state.clipboardSourceFileName ?: state.clipboardSourceUri ?: return
         state = state.copy(parserInput = content)
         summarizeParserInput(content, closeClipboardOnSuccess = true)
     }
@@ -999,6 +1035,16 @@ class ArchiveAssistantStateStore(
             .firstOrNull { it.startsWith("http://") || it.startsWith("https://") || it.startsWith("www.") }
     }
 
+    private fun documentSummarizeSource(): DocumentSummarizeSource? {
+        if (state.clipboardSourceContentType != ContentType.DOCUMENT) return null
+        val sourceUri = state.clipboardSourceUri?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return null
+        return DocumentSummarizeSource(
+            uri = sourceUri,
+            format = state.clipboardSourceDocumentFormat ?: DocumentFormat.UNKNOWN,
+            fileName = state.clipboardSourceFileName,
+        )
+    }
+
     private fun String.isBareWebUrl(): Boolean {
         val trimmed = trim()
         return trimmed.isNotBlank() &&
@@ -1073,5 +1119,13 @@ class ArchiveAssistantStateStore(
     }
 
     private class WebPageFetchException(message: String) : Exception(message)
+
+    private class DocumentExtractionException(message: String) : Exception(message)
+
+    private data class DocumentSummarizeSource(
+        val uri: Uri,
+        val format: DocumentFormat,
+        val fileName: String?,
+    )
 
 }

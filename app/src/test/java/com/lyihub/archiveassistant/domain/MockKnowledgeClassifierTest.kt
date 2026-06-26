@@ -13,7 +13,6 @@ class MockKnowledgeClassifierTest {
 
         val payload = result.assertClassified()
         assertEquals(ContentType.WEB_ARTICLE, payload.contentType)
-        assertEquals("网页", payload.tag)
         assertEquals(SampleKnowledgeData.DefaultTopicId, payload.topicId)
     }
 
@@ -23,7 +22,6 @@ class MockKnowledgeClassifierTest {
 
         val payload = result.assertClassified()
         assertEquals(ContentType.IMAGE_SCREENSHOT, payload.contentType)
-        assertEquals("图像", payload.tag)
         assertEquals("topic-ui-inspiration", payload.topicId)
     }
 
@@ -34,7 +32,6 @@ class MockKnowledgeClassifierTest {
         val payload = result.assertClassified()
         assertEquals(ContentType.DOCUMENT, payload.contentType)
         assertEquals(DocumentFormat.PDF, payload.documentFormat)
-        assertEquals("文档", payload.tag)
         assertEquals(SampleKnowledgeData.DefaultTopicId, payload.topicId)
     }
 
@@ -45,7 +42,6 @@ class MockKnowledgeClassifierTest {
         val payload = result.assertClassified()
         assertEquals(ContentType.DOCUMENT, payload.contentType)
         assertEquals(DocumentFormat.MARKDOWN, payload.documentFormat)
-        assertEquals("文档", payload.tag)
     }
 
     @Test
@@ -81,7 +77,6 @@ class MockKnowledgeClassifierTest {
 
         val payload = result.assertClassified()
         assertEquals(ContentType.WEB_ARTICLE, payload.contentType)
-        assertEquals("网页", payload.tag)
         assertEquals("topic-anthropology-clips", payload.topicId)
     }
 

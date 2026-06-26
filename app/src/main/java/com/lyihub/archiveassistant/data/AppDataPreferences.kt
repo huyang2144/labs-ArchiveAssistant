@@ -57,7 +57,6 @@ object AppDataPreferences {
                     id = obj.getString("id"),
                     topicId = obj.getString("topicId"),
                     contentType = ContentType.valueOf(obj.getString("contentType")),
-                    tag = obj.getString("tag"),
                     title = obj.getString("title"),
                     summary = obj.optString("summary", ""),
                     fullText = obj.optString("fullText", ""),
@@ -81,7 +80,6 @@ object AppDataPreferences {
                 put("id", item.id)
                 put("topicId", item.topicId)
                 put("contentType", item.contentType.name)
-                put("tag", item.tag)
                 put("title", item.title)
                 put("summary", item.summary)
                 put("fullText", item.fullText)

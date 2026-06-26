@@ -5,8 +5,6 @@ import com.lyihub.archiveassistant.domain.AiEngineType
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
 import com.lyihub.archiveassistant.domain.KnowledgeItem
-import com.lyihub.archiveassistant.domain.MaterialContext
-import com.lyihub.archiveassistant.domain.MaterialContextSelector
 import com.lyihub.archiveassistant.domain.SmartSummarizeRequest
 import com.lyihub.archiveassistant.domain.SmartSummarizeResult
 import com.lyihub.archiveassistant.domain.SmartSummarizer
@@ -38,8 +36,7 @@ class RemoteApiSmartSummarizer(
             return SmartSummarizeResult.Failure("没有可用主题，无法智能总结")
         }
 
-        val materialContext = MaterialContextSelector.select(normalizedInput, topics, existingItems)
-        val prompt = promptFor(request, normalizedInput, materialContext)
+        val prompt = promptFor(request, normalizedInput, topics)
         val apiRequest = buildRemoteRequest(settings, prompt)
         if (apiRequest.endpoint.isBlank()) {
             return SmartSummarizeResult.Failure("远程 AI Endpoint 为空，请检查配置")
@@ -60,10 +57,9 @@ class RemoteApiSmartSummarizer(
     }
 
     private fun parseResult(output: String, topics: List<Topic>): SmartSummarizeResult.Success {
-        val json = JSONObject(stripJsonFence(output))
+        val json = JSONObject(extractJsonObject(output))
         val topicId = json.requiredString("topicId")
         val contentType = enumValue<ContentType>(json.requiredString("contentType"))
-        val tag = json.requiredString("tag")
         val title = json.requiredString("title")
         val summary = json.requiredString("summary")
         val documentFormat = enumValue<DocumentFormat>(json.requiredString("documentFormat"))
@@ -75,7 +71,6 @@ class RemoteApiSmartSummarizer(
         return SmartSummarizeResult.Success.fromAiJson(
             topicId = topicId,
             contentType = contentType,
-            tag = tag,
             title = title,
             summary = summary,
             documentFormat = documentFormat,
@@ -86,7 +81,7 @@ class RemoteApiSmartSummarizer(
     private fun promptFor(
         request: SmartSummarizeRequest,
         normalizedInput: String,
-        materialContext: MaterialContext,
+        topics: List<Topic>,
     ): String {
         val fetchedBlock = request.fetchedWebContext?.let { ctx ->
             """
@@ -103,28 +98,40 @@ sourceUrl 必须等于原始 URL。
 
 """.trimIndent()
         }.orEmpty()
+        val documentBlock = request.fetchedDocumentContext?.let { ctx ->
+            """
+已解析的文档内容：
+文件名：${ctx.fileName}
+文档格式：${ctx.format.name}
+原始字符数：${ctx.originalCharCount}
+是否已截断：${ctx.isTruncated}
+文档正文节选：${ctx.extractedText}
+
+注意：当 contentType 为 DOCUMENT 时，title 和 summary 必须基于上述文档正文节选生成。
+documentFormat 必须等于上述文档格式。
+如果“是否已截断”为 true，只能基于可见节选总结，禁止猜测未提供内容。
+
+""".trimIndent()
+        }.orEmpty()
 
         return """
-        你是一个归档助手。请只基于用户原始输入和给定素材上下文进行智能总结。
-        你必须从现有主题中选择且只能选择一个 topicId，topicId 必须是下列已有 ID 之一，禁止创建新主题或返回主题名称。
+        你是一个归档助手。请只基于用户原始输入进行智能总结。
+        你必须根据主题名称从现有主题中选择最接近的一个 topicId，topicId 必须是下列已有 ID 之一，禁止创建新主题或返回主题名称。
 
         用户原始输入：$normalizedInput
         来源 URL（如有）：${request.sourceUrl.orEmpty()}
         来源标题（如有）：${request.sourceTitle.orEmpty()}
 
-        ${fetchedBlock}现有主题：
-        ${materialContext.topicOptions.joinToString("\n") { "- id=${it.id}; title=${it.title}" }}
-
-        相关已归档素材（仅作参考，不要复制为原文）：
-        ${materialContext.selectedSnippets.joinToString("\n") { "- itemId=${it.itemId}; title=${it.title}; snippet=${it.snippet}" }.ifBlank { "（无）" }}
+        ${fetchedBlock}${documentBlock}现有主题：
+        ${topics.joinToString("\n") { "- id=${it.id}; title=${it.title}" }}
 
         请推断 contentType、documentFormat 和 sourceUrl（能确定时填写；不能确定时 sourceUrl 返回空字符串）。
         contentType 只能是：${ALLOWED_CONTENT_TYPES.joinToString(", ") { it.name }}。
         documentFormat 只能是：${DocumentFormat.values().joinToString(", ") { it.name }}；只有模型明确判断未知文档格式时才返回 UNKNOWN。
-        tag、title、summary 必须简洁，title 不超过 28 个中文字符，summary 不超过 96 个中文字符。
+        title、summary 必须简洁，title 不超过 28 个中文字符，summary 不超过 96 个中文字符。
 
         只返回严格 JSON 对象，不要 Markdown，不要解释，不要额外字段：
-        {"topicId":"现有主题ID","contentType":"WEB_ARTICLE","tag":"简短标签","title":"简洁标题","summary":"一句话摘要","sourceUrl":"来源URL或空字符串","documentFormat":"PDF"}
+        {"topicId":"现有主题ID","contentType":"WEB_ARTICLE","title":"简洁标题","summary":"一句话摘要","sourceUrl":"来源URL或空字符串","documentFormat":"PDF"}
     """.trimIndent()
     }
 
@@ -271,15 +278,44 @@ private fun extractModelText(engineType: AiEngineType, responseBody: String): St
     }
 }
 
-private fun stripJsonFence(output: String): String {
+private fun extractJsonObject(output: String): String {
     val trimmed = output.trim()
-    if (!trimmed.startsWith("```")) return trimmed
-    return trimmed
-        .removePrefix("```")
-        .removePrefix("json")
-        .trim()
-        .removeSuffix("```")
-        .trim()
+    val unfenced = if (trimmed.startsWith("```")) {
+        trimmed
+            .removePrefix("```")
+            .removePrefix("json")
+            .removePrefix("JSON")
+            .trim()
+            .removeSuffix("```")
+            .trim()
+    } else {
+        trimmed
+    }
+
+    val start = unfenced.indexOf('{')
+    require(start >= 0)
+
+    var depth = 0
+    var inString = false
+    var isEscaped = false
+    for (index in start until unfenced.length) {
+        val char = unfenced[index]
+        if (isEscaped) {
+            isEscaped = false
+            continue
+        }
+        when {
+            char == '\\' && inString -> isEscaped = true
+            char == '"' -> inString = !inString
+            !inString && char == '{' -> depth += 1
+            !inString && char == '}' -> {
+                depth -= 1
+                if (depth == 0) return unfenced.substring(start, index + 1)
+            }
+        }
+    }
+
+    error("No complete JSON object found")
 }
 
 private fun apiEndpoint(baseUrl: String, path: String): String {

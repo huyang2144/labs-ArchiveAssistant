@@ -3,9 +3,12 @@ package com.lyihub.archiveassistant.state
 import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import com.lyihub.archiveassistant.data.ModelDownloadManager
 import com.lyihub.archiveassistant.data.AppDataRepository
+import com.lyihub.archiveassistant.data.DocumentContentExtractionResult
+import com.lyihub.archiveassistant.data.DocumentContentExtractor
+import com.lyihub.archiveassistant.data.ExtractedDocumentContent
 import com.lyihub.archiveassistant.data.FetchedWebPageContent
+import com.lyihub.archiveassistant.data.ModelDownloadManager
 import com.lyihub.archiveassistant.data.WebPageContentFetcher
 import com.lyihub.archiveassistant.data.WebPageContentFetchResult
 import com.lyihub.archiveassistant.domain.AiEngineSettings
@@ -140,7 +143,6 @@ class ArchiveAssistantStateStoreTest {
             SmartSummarizeResult.Success(
                 topicId = "topic-ui-inspiration",
                 contentType = ContentType.IMAGE_SCREENSHOT,
-                tag = "截图",
                 title = "Settings panel",
                 summary = "UX screenshot image of a settings panel",
                 documentFormat = DocumentFormat.UNKNOWN,
@@ -173,7 +175,6 @@ class ArchiveAssistantStateStoreTest {
             SmartSummarizeResult.Success(
                 topicId = "topic-ui-inspiration",
                 contentType = ContentType.WEB_ARTICLE,
-                tag = "AI摘要",
                 title = "智能摘要标题",
                 summary = "智能摘要内容",
                 documentFormat = DocumentFormat.UNKNOWN,
@@ -194,7 +195,6 @@ class ArchiveAssistantStateStoreTest {
         assertEquals("item-classified-6", newItem.id)
         assertEquals("topic-ui-inspiration", newItem.topicId)
         assertEquals(ContentType.WEB_ARTICLE, newItem.contentType)
-        assertEquals("AI摘要", newItem.tag)
         assertEquals("智能摘要标题", newItem.title)
         assertEquals("智能摘要内容", newItem.summary)
         assertEquals("Original raw text without URL", newItem.fullText)
@@ -1013,22 +1013,28 @@ class ArchiveAssistantStateStoreTest {
     }
 
     @Test
-    fun acceptClipboardAndSummarize_withNullContent_doesNotReleasePermission() {
-        val store = ArchiveAssistantStateStore()
+    fun acceptClipboardAndSummarize_withDocumentUriOnly_usesFileNameFallback() {
+        val summarizer = FakeSmartSummarizer(successResult(title = "DOCX summary"))
+        val store = smartStore(summarizer)
         var released = false
         store.releaseDragPermission = { released = true }
 
         store.showClipboard(
             content = "",
-            sourceUri = "content://test/image.png",
-            sourceContentType = ContentType.IMAGE_SCREENSHOT,
+            sourceUri = "content://test/drag.docx",
+            sourceContentType = ContentType.DOCUMENT,
+            sourceDocumentFormat = DocumentFormat.DOCX,
+            sourceFileName = "drag.docx",
             sourceLabel = "拖拽",
         )
         store.acceptClipboardAndSummarize()
+        waitUntil { summarizer.callCount == 1 && !store.state.isSmartSummarizing }
 
-        assertFalse(released)
-        assertNotNull(store.releaseDragPermission)
-        assertTrue(store.state.showClipboardDialog)
+        assertTrue(released)
+        assertNull(store.releaseDragPermission)
+        assertFalse(store.state.showClipboardDialog)
+        assertEquals("drag.docx", summarizer.requests.single().rawText)
+        assertEquals(1, store.state.items.count { it.title == "DOCX summary" })
     }
 
     @Test
@@ -1257,6 +1263,7 @@ class ArchiveAssistantStateStoreTest {
         store.submitParserInput()
 
         assertTrue(store.state.isSmartSummarizing || inferenceConnection.summarizeCallCount == 0)
+        waitUntil { inferenceConnection.summarizeCallCount == 1 }
         gate.complete(successResult(title = "Async local summary"))
         waitUntil { !store.state.isSmartSummarizing }
         assertTrue(store.state.items.any { it.title == "Async local summary" })
@@ -1362,7 +1369,6 @@ class ArchiveAssistantStateStoreTest {
     ) = SmartSummarizeResult.Success(
         topicId = topicId,
         contentType = ContentType.DOCUMENT,
-        tag = "智能摘要",
         title = title,
         summary = "Smart summary",
         documentFormat = DocumentFormat.MARKDOWN,
@@ -1382,7 +1388,7 @@ class ArchiveAssistantStateStoreTest {
     )
 
     private fun localSmartJson() = """
-        {"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"DOCUMENT","tag":"本地摘要","title":"本地摘要标题","summary":"本地摘要内容","sourceUrl":"","documentFormat":"MARKDOWN"}
+        {"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"DOCUMENT","title":"本地摘要标题","summary":"本地摘要内容","sourceUrl":"","documentFormat":"MARKDOWN"}
     """.trimIndent()
 
     private fun waitUntil(assertion: () -> Boolean) {
@@ -1512,6 +1518,25 @@ class ArchiveAssistantStateStoreTest {
             callCount++
             originalUrls += originalUrl
             fetchUrls += fetchUrl
+            return result
+        }
+    }
+
+    private class FakeDocumentContentExtractor(
+        private val result: DocumentContentExtractionResult,
+    ) : DocumentContentExtractor {
+        val uris = mutableListOf<Uri>()
+        val formats = mutableListOf<DocumentFormat>()
+        val fileNames = mutableListOf<String?>()
+
+        override suspend fun extract(
+            uri: Uri,
+            format: DocumentFormat,
+            fileName: String?,
+        ): DocumentContentExtractionResult {
+            uris += uri
+            formats += format
+            fileNames += fileName
             return result
         }
     }

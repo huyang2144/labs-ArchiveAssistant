@@ -145,7 +145,7 @@ class DetailPaneTest {
         composeTestRule.onNodeWithTag("card-modal").assertIsDisplayed()
         composeTestRule.onNodeWithTag("card-modal-close").assertIsDisplayed()
         composeTestRule.onNodeWithText(item.title).assertIsDisplayed()
-        composeTestRule.onNodeWithText(item.tag).assertIsDisplayed()
+        composeTestRule.onNodeWithText(item.contentType.label).assertIsDisplayed()
 
         composeTestRule.onNodeWithTag("card-modal-close").performClick()
         assertTrue(closeCalled)

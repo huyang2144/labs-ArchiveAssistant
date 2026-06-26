@@ -18,7 +18,7 @@ Android repo references:
 - AI classify: `智能归纳` starts classification. During the first usable module this should use fake or deterministic local classification only, with no real AI API calls.
 - Recent topics: `最近主题` shows recently used topics, a `新建` action, and an `全部` action to open topic management.
 - Detail tabs: selected topic opens a reader with tabs for `全部`, `网页文章`, `图像截屏`, and `文档/PDF`.
-- Card modal: tapping a card opens a modal with type tag, title, rendered content, and close or secondary action controls.
+- Card modal: tapping a card opens a modal with the enum-derived content type label, title, rendered content, and close or secondary action controls.
 - Topic manage: `全部主题` shows all topics and supports create or rename with the 20-character limit from the prototype modal.
 - Settings cloud/local toggle: `引擎类型` switches between API and `本地模型`, showing cloud Base URL, API key, cloud model, or local model fields.
 - Foldable master/detail adaptation: compact screens use one pane with back navigation. Unfolded screens show master and selected right-side pane together.

@@ -17,7 +17,6 @@ class SmartSummarizerContractTest {
         val result = SmartSummarizeResult.Success(
             topicId = "topic-1",
             contentType = ContentType.WEB_ARTICLE,
-            tag = "网页",
             title = "Scalable AI Systems",
             summary = "A concise summary of scalable AI architectures.",
             documentFormat = DocumentFormat.UNKNOWN,
@@ -28,7 +27,6 @@ class SmartSummarizerContractTest {
 
         assertEquals("topic-1", payload.topicId)
         assertEquals(ContentType.WEB_ARTICLE, payload.contentType)
-        assertEquals("网页", payload.tag)
         assertEquals("Scalable AI Systems", payload.title)
         assertEquals("A concise summary of scalable AI architectures.", payload.summary)
         assertEquals("original user input", payload.rawInput)
@@ -40,7 +38,6 @@ class SmartSummarizerContractTest {
         val result = SmartSummarizeResult.Success(
             topicId = "topic-1",
             contentType = ContentType.DOCUMENT,
-            tag = "文档",
             title = "Research Paper",
             summary = "Abstract of the paper.",
             documentFormat = DocumentFormat.PDF,
@@ -58,7 +55,6 @@ class SmartSummarizerContractTest {
         val result = SmartSummarizeResult.Success(
             topicId = "topic-1",
             contentType = ContentType.WEB_ARTICLE,
-            tag = "网页",
             title = "Article",
             summary = "AI-generated summary of the article.",
             documentFormat = DocumentFormat.UNKNOWN,
@@ -102,7 +98,6 @@ class SmartSummarizerContractTest {
         val result = SmartSummarizeResult.Success(
             topicId = "topic-1",
             contentType = ContentType.WEB_ARTICLE,
-            tag = "网页",
             title = "Article",
             summary = "Summary.",
             documentFormat = DocumentFormat.UNKNOWN,
@@ -116,7 +111,6 @@ class SmartSummarizerContractTest {
         val result = SmartSummarizeResult.Success.fromAiJson(
             topicId = "topic-1",
             contentType = ContentType.WEB_ARTICLE,
-            tag = "网页",
             title = "Article",
             summary = "Summary.",
             documentFormat = DocumentFormat.UNKNOWN,
@@ -131,7 +125,6 @@ class SmartSummarizerContractTest {
         val result = SmartSummarizeResult.Success.fromAiJson(
             topicId = "topic-1",
             contentType = ContentType.WEB_ARTICLE,
-            tag = "网页",
             title = "Article",
             summary = "Summary.",
             documentFormat = DocumentFormat.MARKDOWN,
@@ -217,7 +210,6 @@ class SmartSummarizerContractTest {
         val result = SmartSummarizeResult.Success(
             topicId = "topic-1",
             contentType = ContentType.WEB_ARTICLE,
-            tag = "网页",
             title = "Article Title",
             summary = "AI-generated summary.",
             documentFormat = DocumentFormat.UNKNOWN,

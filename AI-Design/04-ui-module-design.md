@@ -15,7 +15,7 @@ Android repo references:
 - `ParserCard`: multiline input, paste or file actions, support hint, `智能归纳` button.
 - `RecentTopicList`: topic rows or cards with item count and updated state.
 - `DetailPane`: selected topic header, `ContentTypeTabs`, `KnowledgeFeed`, and empty state.
-- `KnowledgeCard`: compact item preview with content type tag and title.
+- `KnowledgeCard`: compact item preview with the enum-derived content type label and title.
 - `KnowledgeCardModal`: detailed content panel with close action.
 - `SettingsPane`: engine type selector, cloud fields, local fields, masked key field.
 - `TopicManagePane`: all-topic list, create, rename, and select actions.

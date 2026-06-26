@@ -36,16 +36,19 @@ Fields:
 - `id: String`
 - `topicId: String`
 - `contentType: ContentType`
-- `tag: String`
 - `title: String`
 - `summary: String`
 - `fullText: String`
 - `sourceUrl: String?`
+- `documentFormat: DocumentFormat?`
+- `fileName: String?`
+- `fileSize: Long?`
 - `createdAtEpochMillis: Long`
 
 Responsibilities:
 
 - Drives card feed and card modal.
+- Derives visible type labels from `contentType.label`; free-form per-item tags are not part of the model.
 - Uses local content only during the first implementation cycle.
 - Keeps display preview text in `summary` and full modal or detail text in `fullText`.
 

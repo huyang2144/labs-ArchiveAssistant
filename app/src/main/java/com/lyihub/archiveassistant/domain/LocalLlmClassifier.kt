@@ -26,7 +26,6 @@ class LocalLlmClassifier(private val engine: LocalLlmEngine) {
                 ClassificationPayload(
                     topicId = matchedTopic.id,
                     contentType = ContentType.WEB_ARTICLE,
-                    tag = ContentType.WEB_ARTICLE.label,
                     title = normalizedInput.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(28)
                         ?: "提取内容",
                     summary = json.optString("reason").trim().ifBlank { normalizedInput.take(96) },

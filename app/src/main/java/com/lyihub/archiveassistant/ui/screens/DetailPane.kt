@@ -266,7 +266,7 @@ private fun KnowledgeItemRow(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = item.tag,
+                    text = item.contentType.label,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -772,7 +772,7 @@ fun CardModal(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = item.tag,
+                        text = item.contentType.label,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -953,6 +953,9 @@ fun ClipboardDialog(
     content: String,
     imageUri: String? = null,
     sourceLabel: String? = null,
+    sourceContentType: ContentType? = null,
+    sourceDocumentFormat: DocumentFormat? = null,
+    sourceFileName: String? = null,
     onSummarize: () -> Unit,
     onManualCreate: () -> Unit,
     onDismiss: () -> Unit,
@@ -1008,6 +1011,40 @@ fun ClipboardDialog(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                if (!hasContent && imageBitmap == null && (sourceFileName != null || sourceDocumentFormat != null)) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.small,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            sourceFileName?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                            val typeLabel = when {
+                                sourceDocumentFormat != null && sourceDocumentFormat != DocumentFormat.UNKNOWN ->
+                                    "${sourceDocumentFormat.label} ${ContentType.DOCUMENT.label}"
+                                sourceContentType != null -> sourceContentType.label
+                                else -> null
+                            }
+                            typeLabel?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
                 }
                 if (smartSummarizationMessage != null) {
                     Text(

@@ -20,6 +20,14 @@ data class FetchedWebContext(
     val bodyText: String,
 )
 
+data class FetchedDocumentContext(
+    val fileName: String,
+    val format: DocumentFormat,
+    val extractedText: String,
+    val originalCharCount: Int,
+    val isTruncated: Boolean,
+)
+
 /**
  * Request for smart summarization.
  * Carries only original user/clipboard input — never model output.
@@ -37,6 +45,7 @@ data class SmartSummarizeRequest(
     val sourceUrl: String? = null,
     val sourceTitle: String? = null,
     val fetchedWebContext: FetchedWebContext? = null,
+    val fetchedDocumentContext: FetchedDocumentContext? = null,
 )
 
 /**
@@ -46,7 +55,7 @@ sealed interface SmartSummarizeResult {
     /**
      * Successful summarization with fields parsed from AI JSON output.
      *
-     * Required AI JSON fields: [topicId], [contentType], [tag], [title], [summary], [documentFormat].
+     * Required AI JSON fields: [topicId], [contentType], [title], [summary], [documentFormat].
      * Optional AI JSON field: [sourceUrl] (empty string maps to null).
      *
      * @param sourceUrl  Source URL from AI; an empty string is normalized to null.
@@ -54,7 +63,6 @@ sealed interface SmartSummarizeResult {
     data class Success(
         val topicId: String,
         val contentType: ContentType,
-        val tag: String,
         val title: String,
         val summary: String,
         val documentFormat: DocumentFormat,
@@ -70,7 +78,6 @@ sealed interface SmartSummarizeResult {
         fun toClassificationPayload(rawText: String): ClassificationPayload = ClassificationPayload(
             topicId = topicId,
             contentType = contentType,
-            tag = tag,
             title = title,
             summary = summary,
             rawInput = rawText,
@@ -85,7 +92,6 @@ sealed interface SmartSummarizeResult {
             fun fromAiJson(
                 topicId: String,
                 contentType: ContentType,
-                tag: String,
                 title: String,
                 summary: String,
                 documentFormat: DocumentFormat,
@@ -93,7 +99,6 @@ sealed interface SmartSummarizeResult {
             ): Success = Success(
                 topicId = topicId,
                 contentType = contentType,
-                tag = tag,
                 title = title,
                 summary = summary,
                 documentFormat = documentFormat,
