@@ -310,9 +310,16 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         resources,
         R.drawable.memorial_xuan_paper,
     )
-    private val coverTexture: Bitmap? = BitmapFactory.decodeResource(
+    private val fallbackCoverTexture: Bitmap? = BitmapFactory.decodeResource(
         resources,
         R.drawable.memorial_cover_pattern,
+    )
+    private val coverTextures: List<Bitmap?> = listOf(
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_01),
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_02),
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_03),
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_04),
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_05),
     )
     private val buttonTexture: Bitmap? = BitmapFactory.decodeResource(
         resources,
@@ -974,6 +981,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
             canvas = canvas,
             article = cover,
             left = coverLeft,
+            coverSequenceIndex = coverStackIndex,
             transform = FoldTransform(
                 rotationY = 0f,
                 pivotX = coverLeft + cover.width,
@@ -1111,6 +1119,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
                 canvas = canvas,
                 article = cover,
                 left = stackRect.left,
+                coverSequenceIndex = coverStackIndex + level,
                 transform = FoldTransform(
                     rotationY = 0f,
                     pivotX = stackRect.right,
@@ -1969,12 +1978,13 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         canvas: Canvas,
         article: ArticleLayout,
         left: Float,
+        coverSequenceIndex: Int = coverStackIndex,
         transform: FoldTransform,
     ) {
         articleRect.set(left, article.top, left + article.width, article.top + article.height)
         canvas.drawRect(articleRect, articlePaint)
         if (article.page.type == MemorialPageType.Cover) {
-            drawCoverBackground(canvas, articleRect)
+            drawCoverBackground(canvas, articleRect, coverSequenceIndex)
         } else {
             drawPaperBackground(canvas, articleRect, rotated = article.pageIndex % 2 == 1)
         }
@@ -2003,8 +2013,8 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         }
     }
 
-    private fun drawCoverBackground(canvas: Canvas, rect: RectF) {
-        coverTexture?.let { texture ->
+    private fun drawCoverBackground(canvas: Canvas, rect: RectF, coverSequenceIndex: Int) {
+        coverTextureFor(coverSequenceIndex)?.let { texture ->
             canvas.drawBitmap(texture, null, rect, coverPaint)
         } ?: run {
             articlePaint.color = AndroidColor.rgb(122, 62, 42)
@@ -2026,6 +2036,19 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         )
         canvas.drawRect(rect, surfacePaint)
         surfacePaint.shader = null
+    }
+
+    private fun coverTextureFor(coverSequenceIndex: Int): Bitmap? {
+        return if (coverTextures.isNotEmpty()) {
+            coverTextures[positiveModulo(coverSequenceIndex, coverTextures.size)] ?: fallbackCoverTexture
+        } else {
+            fallbackCoverTexture
+        }
+    }
+
+    private fun positiveModulo(value: Int, modulo: Int): Int {
+        val remainder = value % modulo
+        return if (remainder >= 0) remainder else remainder + modulo
     }
 
     private fun drawPaperBackground(canvas: Canvas, rect: RectF, rotated: Boolean) {
