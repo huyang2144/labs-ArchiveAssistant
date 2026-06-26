@@ -22,7 +22,7 @@ class MockKnowledgeClassifierTest {
 
         val payload = result.assertClassified()
         assertEquals(ContentType.IMAGE_SCREENSHOT, payload.contentType)
-        assertEquals("topic-ui-inspiration", payload.topicId)
+        assertEquals(SixMinistryCatalog.LiRitesTopicId, payload.topicId)
     }
 
     @Test
@@ -77,7 +77,7 @@ class MockKnowledgeClassifierTest {
 
         val payload = result.assertClassified()
         assertEquals(ContentType.WEB_ARTICLE, payload.contentType)
-        assertEquals("topic-anthropology-clips", payload.topicId)
+        assertEquals(SixMinistryCatalog.LiRitesTopicId, payload.topicId)
     }
 
     @Test
@@ -95,7 +95,7 @@ class MockKnowledgeClassifierTest {
             ContentType.entries.map { it.label },
         )
         assertEquals(
-            listOf("大模型架构研究", "UX/UI 灵感板", "阅读剪报：人类学", "冷门旅行地参考", "开源工具收藏"),
+            listOf("吏部 · 人物组织", "户部 · 商业经济", "礼部 · 文化审美", "兵部 · 趋势战略", "刑部 · 事实核验", "工部 · 技术产品"),
             SampleKnowledgeData.topics.map { it.title },
         )
         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.WEB_ARTICLE })

@@ -157,7 +157,7 @@ class ArchiveAssistantStateStoreTest {
 
         val newItem = store.state.items.last()
         assertEquals(initialItemCount + 1, store.state.items.size)
-        assertEquals("item-classified-6", newItem.id)
+        assertEquals("item-classified-8", newItem.id)
         assertEquals("topic-ui-inspiration", newItem.topicId)
         assertEquals(ContentType.IMAGE_SCREENSHOT, newItem.contentType)
         assertEquals("", store.state.parserInput)
@@ -192,7 +192,7 @@ class ArchiveAssistantStateStoreTest {
         val newItem = store.state.items.last()
         assertEquals(1, summarizer.callCount)
         assertEquals(initialItemCount + 1, store.state.items.size)
-        assertEquals("item-classified-6", newItem.id)
+        assertEquals("item-classified-8", newItem.id)
         assertEquals("topic-ui-inspiration", newItem.topicId)
         assertEquals(ContentType.WEB_ARTICLE, newItem.contentType)
         assertEquals("智能摘要标题", newItem.title)
@@ -609,16 +609,16 @@ class ArchiveAssistantStateStoreTest {
     }
 
     @Test
-    fun recentTopics_returnsTopFiveByUpdatedAtDescending() {
+    fun recentTopics_returnsSixMinistriesByUpdatedAtDescending() {
         val store = ArchiveAssistantStateStore()
 
         val recent = store.state.recentTopics
-        assertEquals(5, recent.size)
+        assertEquals(6, recent.size)
         assertTrue(recent.zipWithNext { a, b -> a.updatedAtEpochMillis >= b.updatedAtEpochMillis }.all { it })
     }
 
     @Test
-    fun recentTopics_afterClassification_reflectsUpdatedTopicAtTop() {
+    fun recentTopics_afterClassification_updatesTopicWithoutChangingMinistryOrder() {
         val topicId = "topic-anthropology-clips"
         val store = smartStore(successResult(topicId = topicId))
         val topicBefore = store.state.topics.first { it.id == topicId }
@@ -629,8 +629,8 @@ class ArchiveAssistantStateStoreTest {
         waitUntil { !store.state.isSmartSummarizing }
 
         val recent = store.state.recentTopics
-        assertEquals(topicId, recent.first().id)
-        assertTrue(recent.first().updatedAtEpochMillis > topicBefore.updatedAtEpochMillis)
+        assertEquals(SampleKnowledgeData.topics.map { it.id }, recent.map { it.id })
+        assertTrue(recent.first { it.id == topicId }.updatedAtEpochMillis > topicBefore.updatedAtEpochMillis)
     }
 
     @Test
@@ -638,10 +638,10 @@ class ArchiveAssistantStateStoreTest {
         val store = ArchiveAssistantStateStore()
 
         store.createTopic("新主题")
-        assertEquals("topic-user-6", store.state.selectedTopicId)
+        assertEquals("topic-user-7", store.state.selectedTopicId)
         assertEquals("新主题", store.state.selectedTopic?.title)
 
-        store.renameTopic("topic-user-6", "重命名主题")
+        store.renameTopic("topic-user-7", "重命名主题")
         assertEquals("重命名主题", store.state.selectedTopic?.title)
 
         store.createTopic("重命名主题")

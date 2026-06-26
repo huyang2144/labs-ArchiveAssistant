@@ -71,7 +71,7 @@ fun ManagePane(
 
     PaneContainer(modifier = modifier.testTag("manage-pane")) {
         PaneHeader(
-            title = "全部主题",
+            title = "尚书省归档",
             navigationIcon = {
                 IconButton(
                     onClick = onBack,

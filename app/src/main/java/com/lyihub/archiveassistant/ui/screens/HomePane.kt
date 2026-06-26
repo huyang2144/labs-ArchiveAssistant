@@ -1,7 +1,9 @@
 package com.lyihub.archiveassistant.ui.screens
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,8 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
@@ -37,6 +39,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.lyihub.archiveassistant.domain.KnowledgeItem
+import com.lyihub.archiveassistant.domain.MinistryProfile
+import com.lyihub.archiveassistant.domain.SixMinistryCatalog
 import com.lyihub.archiveassistant.domain.Topic
 import com.lyihub.archiveassistant.ui.components.ActionButton
 import com.lyihub.archiveassistant.ui.components.TextActionButton
@@ -51,7 +56,7 @@ fun HomePane(
     parserInput: String,
     parserValidationMessage: String?,
     recentTopics: List<Topic>,
-    itemsByTopic: Map<String, List<com.lyihub.archiveassistant.domain.KnowledgeItem>>,
+    itemsByTopic: Map<String, List<KnowledgeItem>>,
     searchQuery: String,
     onParserInputChanged: (String) -> Unit,
     onSubmitParserInput: () -> Unit,
@@ -91,6 +96,11 @@ fun HomePane(
         )
         PaneDivider()
         LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            item {
+                PaneContentPadding {
+                    CourtBriefingCard(totalItems = itemsByTopic.values.sumOf { it.size })
+                }
+            }
             item {
                 PaneContentPadding {
                     ParserSection(
@@ -146,14 +156,21 @@ fun HomePane(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text(
-                            text = "最近主题",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "尚书省 · 六部归档",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "固定六部承接全部收藏，方便演示信息治理秩序",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextActionButton(
-                                label = "新建",
+                                label = "新增",
                                 onClick = onCreateTopic,
                                 testTag = "home-create-topic-button",
                                 icon = Icons.Default.Add,
@@ -166,17 +183,101 @@ fun HomePane(
                             )
                         }
                     }
-                    recentTopics.forEach { topic ->
-                        TopicCard(
-                            topic = topic,
-                            itemCount = itemsByTopic[topic.id]?.size ?: 0,
-                            searchQuery = searchQuery,
-                            onClick = { onTopicSelected(topic.id) },
-                        )
+                    val displayTopics = ministryOrderedTopics(recentTopics)
+                    displayTopics.chunked(2).forEach { rowTopics ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            rowTopics.forEach { topic ->
+                                TopicCard(
+                                    topic = topic,
+                                    itemCount = itemsByTopic[topic.id]?.size ?: 0,
+                                    searchQuery = searchQuery,
+                                    onClick = { onTopicSelected(topic.id) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (rowTopics.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CourtBriefingCard(totalItems: Int) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = Color(0xFFFFF7E5),
+        tonalElevation = 0.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            Color(0xFFD7B56D).copy(alpha = 0.45f),
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "三省六部信息中枢",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color(0xFF4A3216),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "中书拟录 · 门下复核 · 尚书归档",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF765A2F),
+                    )
+                }
+                Text(
+                    text = "$totalItems 项",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFF7A5518),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("录入", "审核", "归档", "批阅").forEach { label ->
+                    FlowChip(label = label)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlowChip(label: String) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = Color(0xFFFFFFFF).copy(alpha = 0.55f),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            Color(0xFFD7B56D).copy(alpha = 0.35f),
+        ),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFF7A5518),
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
@@ -214,71 +315,86 @@ private fun ParserSection(
     smartSummarizationMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Surface(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
+        ),
     ) {
-        OutlinedTextField(
-            value = input,
-            onValueChange = onInputChanged,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("parser-input"),
-            placeholder = {
-                Text(
-                    text = "拖拽文件、输入链接、纯文本，或直接从剪切板粘贴...",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            minLines = 3,
-            maxLines = 6,
-            shape = MaterialTheme.shapes.medium,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-            ),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = "支持多模态解析",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            SectionEyebrow(
+                title = "中书省",
+                subtitle = "录入 / 智能归纳",
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextActionButton(
-                    label = "剪切板",
-                    onClick = onOpenClipboard,
-                    testTag = "clipboard-button",
+            OutlinedTextField(
+                value = input,
+                onValueChange = onInputChanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("parser-input"),
+                placeholder = {
+                    Text(
+                        text = "拖拽文件、输入链接、纯文本，或直接从剪切板粘贴...",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                },
+                minLines = 3,
+                maxLines = 6,
+                shape = MaterialTheme.shapes.medium,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.outline,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "入省后生成摘要、来源与拟归属",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                ActionButton(
-                    label = if (isSmartSummarizing) "归纳中…" else "智能归纳",
-                    onClick = onSubmit,
-                    testTag = "classify-button",
-                    enabled = !isSmartSummarizing && input.isNotBlank(),
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextActionButton(
+                        label = "剪切板",
+                        onClick = onOpenClipboard,
+                        testTag = "clipboard-button",
+                    )
+                    ActionButton(
+                        label = if (isSmartSummarizing) "归纳中…" else "中书拟录",
+                        onClick = onSubmit,
+                        testTag = "classify-button",
+                        enabled = !isSmartSummarizing && input.isNotBlank(),
+                    )
+                }
+            }
+            if (validationMessage != null) {
+                Text(
+                    text = validationMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(start = 4.dp),
                 )
             }
-        }
-        if (validationMessage != null) {
-            Text(
-                text = validationMessage,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(start = 4.dp),
-            )
-        }
-        if (smartSummarizationMessage != null) {
-            Text(
-                text = smartSummarizationMessage,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(start = 4.dp),
-            )
+            if (smartSummarizationMessage != null) {
+                Text(
+                    text = smartSummarizationMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
         }
     }
 }
@@ -289,25 +405,64 @@ private fun TopicCard(
     itemCount: Int,
     searchQuery: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val ministry = SixMinistryCatalog.profileForTopicId(topic.id)
+    val accent = ministry?.color ?: parseColor(topic.iconColor)
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier
-            .fillMaxWidth()
+        color = accent.copy(alpha = 0.07f),
+        shape = MaterialTheme.shapes.large,
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.24f)),
+        modifier = modifier
             .clickable(onClick = onClick)
             .testTag("topic-card-${topic.id}"),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = ministry?.name ?: topic.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = ministry?.domain ?: "主题归档",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = accent,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                MinistrySeal(text = ministry?.name?.take(1) ?: topic.title.take(1), color = accent)
+            }
+            Text(
+                text = ministry?.responsibility ?: topic.title,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
                 Text(
                     text = if (searchQuery.isBlank()) {
-                        androidx.compose.ui.text.AnnotatedString(topic.title)
+                        androidx.compose.ui.text.AnnotatedString("尚书省案牍")
                     } else {
                         buildHighlightedText(
                             text = topic.title,
@@ -316,20 +471,82 @@ private fun TopicCard(
                             highlightBgColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                         )
                     },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${friendlyTime(topic.updatedAtEpochMillis)} · ${itemCount} 项内容",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "${itemCount} 项",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = accent,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
     }
+}
+
+private val MinistryProfile.color: Color
+    get() = parseColor(colorHex)
+
+@Composable
+private fun SectionEyebrow(
+    title: String,
+    subtitle: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun MinistrySeal(
+    text: String,
+    color: Color,
+) {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(MaterialTheme.shapes.small)
+            .background(color.copy(alpha = 0.12f))
+            .border(1.dp, color.copy(alpha = 0.38f), MaterialTheme.shapes.small),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            color = color,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+private fun ministryOrderedTopics(topics: List<Topic>): List<Topic> {
+    val topicById = topics.associateBy { it.id }
+    val ordered = SixMinistryCatalog.ministries.mapNotNull { topicById[it.topicId] }
+    val extras = topics.filterNot { it.id in SixMinistryCatalog.topicIds }
+    return ordered + extras
+}
+
+private fun parseColor(value: String): Color = try {
+    Color(android.graphics.Color.parseColor(value))
+} catch (_: Exception) {
+    Color(0xFF8A6421)
 }
 
 internal fun friendlyTime(epochMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {

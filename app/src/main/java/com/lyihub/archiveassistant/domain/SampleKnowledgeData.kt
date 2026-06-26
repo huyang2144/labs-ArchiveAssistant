@@ -1,45 +1,9 @@
 package com.lyihub.archiveassistant.domain
 
 object SampleKnowledgeData {
-    const val DefaultTopicId = "topic-ai-architecture"
+    const val DefaultTopicId = SixMinistryCatalog.GongTopicId
 
-    val topics: List<Topic> = listOf(
-        Topic(
-            id = DefaultTopicId,
-            title = "大模型架构研究",
-            iconName = "folder-spark",
-            iconColor = "#b85c38",
-            updatedAtEpochMillis = 1_715_000_000_000,
-        ),
-        Topic(
-            id = "topic-ui-inspiration",
-            title = "UX/UI 灵感板",
-            iconName = "folder-spark",
-            iconColor = "#3898ec",
-            updatedAtEpochMillis = 1_714_000_000_000,
-        ),
-        Topic(
-            id = "topic-anthropology-clips",
-            title = "阅读剪报：人类学",
-            iconName = "folder-bookmark",
-            iconColor = "#5e5d59",
-            updatedAtEpochMillis = 1_713_000_000_000,
-        ),
-        Topic(
-            id = "topic-hidden-travel",
-            title = "冷门旅行地参考",
-            iconName = "folder-spark",
-            iconColor = "#3f3a34",
-            updatedAtEpochMillis = 1_712_000_000_000,
-        ),
-        Topic(
-            id = "topic-open-source-tools",
-            title = "开源工具收藏",
-            iconName = "folder-bookmark",
-            iconColor = "#2d8a6e",
-            updatedAtEpochMillis = 1_711_000_000_000,
-        ),
-    )
+    val topics: List<Topic> = SixMinistryCatalog.topics
 
     val items: List<KnowledgeItem> = listOf(
         KnowledgeItem(
@@ -75,24 +39,45 @@ object SampleKnowledgeData {
         ),
         KnowledgeItem(
             id = "item-ui-screenshot",
-            topicId = "topic-ui-inspiration",
+            topicId = SixMinistryCatalog.LiRitesTopicId,
             contentType = ContentType.IMAGE_SCREENSHOT,
-            title = "设置页信息层级截图",
-            summary = "用于后续卡片弹窗和详情筛选的界面参考。",
+            title = "奏折阅读排版参考",
+            summary = "用于折叠屏双页阅读、批阅按钮和信息层级的界面参考。",
             fullText = "",
             sourceUrl = null,
             createdAtEpochMillis = 1_714_086_400_000,
         ),
         KnowledgeItem(
             id = "item-anthropology-note",
-            topicId = "topic-anthropology-clips",
+            topicId = SixMinistryCatalog.XingTopicId,
             contentType = ContentType.DOCUMENT,
             documentFormat = DocumentFormat.PDF,
-            title = "田野笔记片段",
-            summary = "阅读剪报中的短文本摘录。",
-            fullText = "仪式、交换与地方知识之间的关系。",
+            title = "事实核验剪报",
+            summary = "用于门下省复核的争议事实、来源证据与待确认线索。",
+            fullText = "争议事实、来源证据与待确认线索之间的关系。",
             sourceUrl = null,
             createdAtEpochMillis = 1_713_086_400_000,
+        ),
+        KnowledgeItem(
+            id = "item-market-travel",
+            topicId = SixMinistryCatalog.HuTopicId,
+            contentType = ContentType.WEB_ARTICLE,
+            title = "折叠屏消费趋势观察",
+            summary = "记录折叠屏用户在旅行、消费和高密度信息处理场景中的行为变化。",
+            fullText = "https://example.com/foldable-consumption-trend",
+            sourceUrl = "https://example.com/foldable-consumption-trend",
+            createdAtEpochMillis = 1_714_604_800_000,
+        ),
+        KnowledgeItem(
+            id = "item-strategy-brief",
+            topicId = SixMinistryCatalog.BingTopicId,
+            contentType = ContentType.DOCUMENT,
+            documentFormat = DocumentFormat.MARKDOWN,
+            title = "AI 信息流竞争态势",
+            summary = "比较传统推荐算法与个人知识库驱动推荐的策略差异。",
+            fullText = "传统推荐算法依赖平台大数据，个人知识库推荐依赖用户主动沉淀的信息主权。",
+            sourceUrl = null,
+            createdAtEpochMillis = 1_714_777_600_000,
         ),
     )
 

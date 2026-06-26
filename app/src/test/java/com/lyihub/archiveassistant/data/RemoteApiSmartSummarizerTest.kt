@@ -78,7 +78,7 @@ class RemoteApiSmartSummarizerTest {
         val body = transport.calls.single().body.orEmpty()
         assertTrue(body.contains("现有主题"))
         assertTrue(body.contains(SampleKnowledgeData.DefaultTopicId))
-        assertTrue(body.contains("大模型架构研究"))
+        assertTrue(body.contains("工部 · 技术产品"))
         assertTrue(!body.contains("相关已归档素材"))
         assertTrue(!body.contains("selectedSnippets"))
         assertTrue(!body.contains("item-existing"))

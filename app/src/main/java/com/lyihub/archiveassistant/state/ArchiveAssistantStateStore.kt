@@ -35,6 +35,7 @@ import com.lyihub.archiveassistant.domain.LocalModelState
 import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.domain.MockKnowledgeClassifier
 import com.lyihub.archiveassistant.domain.SampleKnowledgeData
+import com.lyihub.archiveassistant.domain.SixMinistryCatalog
 import com.lyihub.archiveassistant.domain.SmartSummarizeRequest
 import com.lyihub.archiveassistant.domain.SmartSummarizeResult
 import com.lyihub.archiveassistant.domain.SmartSummarizer
@@ -99,7 +100,7 @@ class ArchiveAssistantStateStore(
 
             val restoredState = resolveMockImagePaths(
                 state.copy(
-                    topics = persistedTopics,
+                    topics = SixMinistryCatalog.mergeInto(persistedTopics),
                     items = persistedItems,
                 )
             )
