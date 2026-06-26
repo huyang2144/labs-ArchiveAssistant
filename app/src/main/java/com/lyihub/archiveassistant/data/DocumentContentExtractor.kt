@@ -3,6 +3,9 @@ package com.lyihub.archiveassistant.data
 import android.content.Context
 import android.net.Uri
 import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -36,6 +39,10 @@ data class ExtractedDocumentContent(
 class DefaultDocumentContentExtractor(
     private val context: Context,
 ) : DocumentContentExtractor {
+    init {
+        PDFBoxResourceLoader.init(context)
+    }
+
     override suspend fun extract(
         uri: Uri,
         format: DocumentFormat,
@@ -49,7 +56,7 @@ class DefaultDocumentContentExtractor(
                     DocumentFormat.TXT,
                     DocumentFormat.MARKDOWN -> readTextDocument(input, resolvedName, detectedFormat)
                     DocumentFormat.DOCX -> readDocxDocument(input, resolvedName)
-                    DocumentFormat.PDF -> throw UnsupportedOperationException("PDF 文本抽取暂未启用")
+                    DocumentFormat.PDF -> readPdfDocument(input, resolvedName)
                     DocumentFormat.UNKNOWN -> throw UnsupportedOperationException("暂不支持该文档格式")
                 }
             } ?: throw IOException("无法读取文档")
@@ -62,6 +69,16 @@ class DefaultDocumentContentExtractor(
         } else {
             DocumentContentExtractionResult.Success(content)
         }
+    }
+}
+
+internal fun interface PdfTextExtractor {
+    fun extractText(input: InputStream): String
+}
+
+internal object PdfBoxPdfTextExtractor : PdfTextExtractor {
+    override fun extractText(input: InputStream): String = PDDocument.load(input).use { document ->
+        PDFTextStripper().getText(document)
     }
 }
 
@@ -88,6 +105,17 @@ internal fun readDocxDocument(input: InputStream, fileName: String): ExtractedDo
     }
     throw IOException("不是有效的 DOCX 文档")
 }
+
+internal fun readPdfDocument(
+    input: InputStream,
+    fileName: String,
+    pdfTextExtractor: PdfTextExtractor = PdfBoxPdfTextExtractor,
+): ExtractedDocumentContent = boundedContent(
+    fileName = fileName,
+    format = DocumentFormat.PDF,
+    rawText = pdfTextExtractor.extractText(input),
+    upstreamTruncated = false,
+)
 
 private fun boundedContent(
     fileName: String,

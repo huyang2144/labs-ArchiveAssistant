@@ -55,6 +55,18 @@ class DocumentContentExtractorTest {
         assertTrue(content.extractedText.contains("Second paragraph"))
     }
 
+    @Test
+    fun readPdfDocument_extractsPageText() {
+        val input = ByteArrayInputStream(byteArrayOf(1, 2, 3))
+
+        val content = readPdfDocument(input, "paper.pdf") { "Hello    PDF archive" }
+
+        assertEquals("paper.pdf", content.fileName)
+        assertEquals(DocumentFormat.PDF, content.format)
+        assertEquals("Hello PDF archive", content.extractedText)
+        assertFalse(content.isTruncated)
+    }
+
     private fun docxBytes(documentXml: String): ByteArray {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->

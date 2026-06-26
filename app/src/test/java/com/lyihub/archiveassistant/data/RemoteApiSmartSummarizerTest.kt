@@ -255,6 +255,93 @@ class RemoteApiSmartSummarizerTest {
         assertEquals("Agent 论文", (result as SmartSummarizeResult.Success).title)
     }
 
+    @Test
+    fun summarize_documentContext_showsDocumentExampleInPrompt() = runBlocking {
+        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(
+                engineType = AiEngineType.OPENAI_COMPATIBLE,
+                baseUrl = "https://api.example.com/v1",
+                modelName = "gpt-4",
+                apiKey = "sk-test",
+            ),
+            transport,
+        )
+        val context = FetchedDocumentContext(
+            fileName = "report.pdf",
+            format = DocumentFormat.PDF,
+            extractedText = "PDF content here.",
+            originalCharCount = 256,
+            isTruncated = false,
+        )
+
+        summarizer.summarize(
+            SmartSummarizeRequest(rawText = "report.pdf", fetchedDocumentContext = context),
+            SampleKnowledgeData.topics,
+        )
+
+        val body = transport.calls.single().body.orEmpty()
+        assertTrue("Example should use DOCUMENT not WEB_ARTICLE", body.contains("contentType\\\":\\\"DOCUMENT"))
+        assertTrue("Example should use PDF format name", body.contains("documentFormat\\\":\\\"PDF"))
+        assertTrue("Should keep document-specific instructions", body.contains("contentType 为 DOCUMENT"))
+    }
+
+    @Test
+    fun summarize_parsesLowercaseContentType() = runBlocking {
+        val json =
+            """{"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"document","title":"Agent 论文","summary":"介绍。","sourceUrl":"","documentFormat":"MARKDOWN"}"""
+        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(engineType = AiEngineType.OPENAI_COMPATIBLE, baseUrl = "https://api.example.com/v1"),
+            transport,
+        )
+        val result = summarizer.summarize(SmartSummarizeRequest("test"), SampleKnowledgeData.topics)
+        assertTrue(result is SmartSummarizeResult.Success)
+        assertEquals(ContentType.DOCUMENT, (result as SmartSummarizeResult.Success).contentType)
+    }
+
+    @Test
+    fun summarize_parsesLowercaseDocumentFormat() = runBlocking {
+        val json =
+            """{"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"DOCUMENT","title":"Agent 论文","summary":"介绍。","sourceUrl":"","documentFormat":"markdown"}"""
+        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(engineType = AiEngineType.OPENAI_COMPATIBLE, baseUrl = "https://api.example.com/v1"),
+            transport,
+        )
+        val result = summarizer.summarize(SmartSummarizeRequest("test"), SampleKnowledgeData.topics)
+        assertTrue(result is SmartSummarizeResult.Success)
+        assertEquals(DocumentFormat.MARKDOWN, (result as SmartSummarizeResult.Success).documentFormat)
+    }
+
+    @Test
+    fun summarize_parsesContentTypeByChineseLabel() = runBlocking {
+        val json =
+            """{"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"文档","title":"Agent 论文","summary":"介绍。","sourceUrl":"","documentFormat":"MARKDOWN"}"""
+        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(engineType = AiEngineType.OPENAI_COMPATIBLE, baseUrl = "https://api.example.com/v1"),
+            transport,
+        )
+        val result = summarizer.summarize(SmartSummarizeRequest("test"), SampleKnowledgeData.topics)
+        assertTrue(result is SmartSummarizeResult.Success)
+        assertEquals(ContentType.DOCUMENT, (result as SmartSummarizeResult.Success).contentType)
+    }
+
+    @Test
+    fun summarize_parsesDocumentFormatByLabel() = runBlocking {
+        val json =
+            """{"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"DOCUMENT","title":"Agent 论文","summary":"介绍。","sourceUrl":"","documentFormat":"PDF"}"""
+        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(engineType = AiEngineType.OPENAI_COMPATIBLE, baseUrl = "https://api.example.com/v1"),
+            transport,
+        )
+        val result = summarizer.summarize(SmartSummarizeRequest("test"), SampleKnowledgeData.topics)
+        assertTrue(result is SmartSummarizeResult.Success)
+        assertEquals(DocumentFormat.PDF, (result as SmartSummarizeResult.Success).documentFormat)
+    }
+
     private class FakeRemoteTransport(
         private val body: String,
         private val code: Int = 200,

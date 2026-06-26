@@ -59,10 +59,10 @@ class RemoteApiSmartSummarizer(
     private fun parseResult(output: String, topics: List<Topic>): SmartSummarizeResult.Success {
         val json = JSONObject(extractJsonObject(output))
         val topicId = json.requiredString("topicId")
-        val contentType = enumValue<ContentType>(json.requiredString("contentType"))
+        val contentType = contentTypeValue(json.requiredString("contentType"))
         val title = json.requiredString("title")
         val summary = json.requiredString("summary")
-        val documentFormat = enumValue<DocumentFormat>(json.requiredString("documentFormat"))
+        val documentFormat = documentFormatValue(json.requiredString("documentFormat"))
         val sourceUrl = json.optString("sourceUrl").trim()
 
         require(topics.any { it.id == topicId })
@@ -114,6 +114,9 @@ documentFormat 必须等于上述文档格式。
 """.trimIndent()
         }.orEmpty()
 
+        val exampleContentType = if (request.fetchedDocumentContext != null) "DOCUMENT" else "WEB_ARTICLE"
+        val exampleDocumentFormat = request.fetchedDocumentContext?.format?.name ?: "PDF"
+
         return """
         你是一个归档助手。请只基于用户原始输入进行智能总结。
         你必须根据主题名称从现有主题中选择最接近的一个 topicId，topicId 必须是下列已有 ID 之一，禁止创建新主题或返回主题名称。
@@ -131,7 +134,7 @@ documentFormat 必须等于上述文档格式。
         title、summary 必须简洁，title 不超过 28 个中文字符，summary 不超过 96 个中文字符。
 
         只返回严格 JSON 对象，不要 Markdown，不要解释，不要额外字段：
-        {"topicId":"现有主题ID","contentType":"WEB_ARTICLE","title":"简洁标题","summary":"一句话摘要","sourceUrl":"来源URL或空字符串","documentFormat":"PDF"}
+        {"topicId":"现有主题ID","contentType":"${exampleContentType}","title":"简洁标题","summary":"一句话摘要","sourceUrl":"来源URL或空字符串","documentFormat":"${exampleDocumentFormat}"}
     """.trimIndent()
     }
 
@@ -140,7 +143,13 @@ documentFormat 必须等于上述文档格式。
         return getString(name).trim().also { require(it.isNotEmpty()) }
     }
 
-    private inline fun <reified T : Enum<T>> enumValue(value: String): T = enumValueOf(value)
+    private fun contentTypeValue(value: String): ContentType = ContentType.entries.firstOrNull { type ->
+        type.name == value || type.name.equals(value, ignoreCase = true) || type.label == value
+    } ?: throw IllegalArgumentException("No content type: $value")
+
+    private fun documentFormatValue(value: String): DocumentFormat = DocumentFormat.entries.firstOrNull { format ->
+        format.name == value || format.name.equals(value, ignoreCase = true) || format.label == value
+    } ?: throw IllegalArgumentException("No document format: $value")
 
     private companion object {
         val ALLOWED_CONTENT_TYPES = setOf(
