@@ -13,6 +13,7 @@ import android.graphics.DashPathEffect
 import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
@@ -130,6 +131,7 @@ private const val TOTAL_PENDING_MEMORIALS = 6
 private const val MEMORIAL_OPEN_CLOSE_DURATION_MS = 1_600L
 private const val COVER_VERDICT_DURATION_MS = 1_500L
 private const val COVER_SWITCH_DURATION_MS = 360L
+private const val SUMMARY_FADE_DURATION_MS = 150L
 
 private data class PendingMemorialSummary(
     val title: String,
@@ -319,14 +321,6 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private val buttonAspectRatio: Float = buttonTexture?.let { texture ->
         texture.width.toFloat() / texture.height.toFloat()
     } ?: (413f / 141f)
-    private val completionTexture: Bitmap? = BitmapFactory.decodeResource(
-        resources,
-        R.drawable.memorial_completion_bg,
-    )
-    private val summaryTexture: Bitmap? = BitmapFactory.decodeResource(
-        resources,
-        R.drawable.memorial_summary_bg,
-    )
     private val coverCornerTexture: Bitmap? = BitmapFactory.decodeResource(
         resources,
         R.drawable.memorial_cover_corner,
@@ -350,10 +344,6 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private val coverPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val buttonImagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
         alpha = 232
-    }
-    private val completionImagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    private val summaryImagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-        alpha = 218
     }
     private val coverCornerPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val dashedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -455,6 +445,10 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         strokeWidth = 1.2f * displayDensity
         color = AndroidColor.argb(178, AndroidColor.red(IMPERIAL_GOLD), AndroidColor.green(IMPERIAL_GOLD), AndroidColor.blue(IMPERIAL_GOLD))
     }
+    private val completionCircleStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = IMPERIAL_GOLD
+    }
     private val layerAlphaPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val toolbarTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = MEMORIAL_INK_BROWN
@@ -471,6 +465,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private val coverActionSummaryRect = RectF()
     private val coverActionOpenRect = RectF()
     private val alphaLayerRect = RectF()
+    private val paperClipPath = Path()
 
     private var velocityTracker: VelocityTracker? = null
     private var lastTouchX = 0f
@@ -491,6 +486,8 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private var coverFinalStamp: MemorialStamp? = null
     private var coverFinalStampStrength = 0f
     private var coverFinalStampFromButton = false
+    private var summaryAlpha = 0f
+    private var summaryAnimator: ValueAnimator? = null
     private var completedAlpha = 0f
     private var completedAnimator: ValueAnimator? = null
     private var coverStackIndex = 0
@@ -538,7 +535,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
             coverPreviewStampTargetStrength = 0f
             coverPreviewStampStrength = 0f
             coverPreviewStamp = null
-            summaryVisible = true
+            showSummary(animated = true)
             summaryWasShown = true
             summaryShownByHold = true
             summaryPinnedByTap = false
@@ -563,6 +560,9 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         completedAlpha = 0f
         coverStackAnimator?.cancel()
         coverStackAnimator = null
+        summaryAnimator?.cancel()
+        summaryAnimator = null
+        summaryAlpha = 0f
         completedAnimator?.cancel()
         completedAnimator = null
         stage = MemorialStage.CoverOnly
@@ -591,6 +591,8 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         coverSwipeAnimator = null
         coverStackAnimator?.cancel()
         coverStackAnimator = null
+        summaryAnimator?.cancel()
+        summaryAnimator = null
         stampAnimator?.cancel()
         stampAnimator = null
         completedAnimator?.cancel()
@@ -779,7 +781,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
                 summaryPinnedAtDown = summaryPinnedByTap
                 summaryShownByHold = false
                 if (!summaryPinnedByTap) {
-                    summaryVisible = false
+                    hideSummary(animated = false)
                 }
                 summaryWasShown = false
                 coverSummaryPressed = coverActionSummaryRect.contains(event.x, event.y)
@@ -814,7 +816,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
                 ) {
                     isDragging = true
                     if (!summaryPinnedByTap) {
-                        summaryVisible = false
+                        hideSummary(animated = true)
                     }
                     removeCallbacks(showSummaryRunnable)
                     if (coverTouchStartedOnCover || coverSummaryPressed) {
@@ -830,7 +832,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
                 removeCallbacks(showSummaryRunnable)
                 val consumedLongPress = summaryWasShown
                 if (!summaryPinnedByTap) {
-                    summaryVisible = false
+                    hideSummary(animated = true)
                 }
                 val dx = coverGestureLastAvgX - coverGestureStartAvgX
                 val dy = coverGestureLastAvgY - coverGestureStartAvgY
@@ -843,7 +845,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
                     !isDragging && coverSummaryPressed && releasedSummary -> {
                         val shouldPin = !summaryPinnedAtDown && !summaryShownByHold
                         summaryPinnedByTap = shouldPin
-                        summaryVisible = shouldPin
+                        setSummaryVisible(shouldPin, animated = true)
                         summaryWasShown = false
                         summaryShownByHold = false
                         coverDragX = 0f
@@ -883,7 +885,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
                         expandFromCover()
                     }
                     !isDragging && toolbarPressedStamp == null && !coverTouchStartedOnCover -> {
-                        summaryVisible = false
+                        hideSummary(animated = true)
                         summaryPinnedByTap = false
                         summaryPinnedAtDown = false
                         summaryShownByHold = false
@@ -905,7 +907,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
 
             MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(showSummaryRunnable)
-                summaryVisible = false
+                hideSummary(animated = true)
                 summaryWasShown = false
                 summaryPinnedByTap = false
                 summaryPinnedAtDown = false
@@ -1186,7 +1188,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
             maxWidth = topButtonWidth,
         )
 
-        drawToolbarButton(canvas, coverActionSummaryRect, "长按看简介")
+        drawToolbarButton(canvas, coverActionSummaryRect, "长按简览")
         drawToolbarButton(canvas, coverActionOpenRect, "点击展开")
         drawToolbarButton(canvas, coverActionLeftRect, "左滑驳回")
         drawToolbarButton(canvas, coverActionRightRect, "右滑准奏")
@@ -1212,8 +1214,58 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         }
     }
 
+    private fun showSummary(animated: Boolean) {
+        setSummaryVisible(visible = true, animated = animated)
+    }
+
+    private fun hideSummary(animated: Boolean) {
+        setSummaryVisible(visible = false, animated = animated)
+    }
+
+    private fun setSummaryVisible(visible: Boolean, animated: Boolean) {
+        if (summaryVisible == visible && ((visible && summaryAlpha >= 1f) || (!visible && summaryAlpha <= 0f))) {
+            return
+        }
+        summaryAnimator?.cancel()
+        summaryVisible = visible
+        val target = if (visible) 1f else 0f
+        if (!animated) {
+            summaryAlpha = target
+            invalidate()
+            return
+        }
+
+        summaryAnimator = ValueAnimator.ofFloat(summaryAlpha.coerceIn(0f, 1f), target).apply {
+            duration = SUMMARY_FADE_DURATION_MS
+            interpolator = PathInterpolator(0.22f, 0f, 0.2f, 1f)
+            addUpdateListener { animator ->
+                summaryAlpha = animator.animatedValue as Float
+                invalidate()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                private var canceled = false
+
+                override fun onAnimationCancel(animation: Animator) {
+                    canceled = true
+                }
+
+                override fun onAnimationEnd(animation: Animator) {
+                    if (summaryAnimator == animation) {
+                        summaryAnimator = null
+                    }
+                    if (!canceled) {
+                        summaryAlpha = target
+                        summaryVisible = visible
+                        invalidate()
+                    }
+                }
+            })
+            start()
+        }
+    }
+
     private fun updateCoverPreviewStamp() {
-        if (!coverTouchStartedOnCover || summaryVisible) {
+        if (!coverTouchStartedOnCover || summaryAlpha > 0.05f) {
             coverPreviewStamp = null
             coverPreviewStampTargetStrength = 0f
             coverPreviewStampStrength = lerp(coverPreviewStampStrength, 0f, 0.32f)
@@ -1252,7 +1304,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     }
 
     private fun drawSummaryBubble(canvas: Canvas, coverLeft: Float, cover: ArticleLayout) {
-        if (!summaryVisible || coverPreviewStamp != null || coverFinalStamp != null) return
+        if ((!summaryVisible && summaryAlpha <= 0.01f) || coverPreviewStamp != null || coverFinalStamp != null) return
         val summary = pendingMemorialSummaries[coverStackIndex.coerceIn(0, pendingMemorialSummaries.lastIndex)]
         val side = min(
             min(dp(388f), cover.width * 0.9f),
@@ -1265,17 +1317,23 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         val top = (centerY - side / 2f).coerceIn(foldTop + dp(22f), foldBottom - dp(22f) - side)
         val rect = RectF(left, top, left + side, top + side)
 
-        articlePaint.color = AndroidColor.rgb(247, 240, 219)
-        canvas.drawRect(rect, articlePaint)
-        drawPaperAging(canvas, rect, pageIndex = 37 + coverStackIndex)
-        articlePaint.color = AndroidColor.WHITE
-        summaryTexture?.let { texture ->
-            val texturePadding = dp(18f)
-            val textureRect = RectF(rect).apply {
-                inset(texturePadding, texturePadding)
-            }
-            canvas.drawBitmap(texture, null, textureRect, summaryImagePaint)
-        }
+        val alpha = summaryAlpha.coerceIn(0f, 1f)
+        val layerAlpha = (255f * alpha).roundToInt().coerceIn(0, 255)
+        if (layerAlpha <= 0) return
+        val previousAlpha = layerAlphaPaint.alpha
+        layerAlphaPaint.alpha = layerAlpha
+        val layer = canvas.saveLayer(rect, layerAlphaPaint)
+        val scale = lerp(0.985f, 1f, smoothStep(0f, 1f, alpha))
+        canvas.scale(scale, scale, rect.centerX(), rect.centerY())
+        drawPaperPanel(
+            canvas = canvas,
+            rect = rect,
+            pageIndex = 37 + coverStackIndex,
+            clippedCircle = false,
+        )
+        drawDoubleGoldFrame(canvas, rect, outerInset = dp(15f), innerInset = dp(24f))
+        val ornamentRect = RectF(rect).apply { inset(dp(24f), dp(24f)) }
+        drawCoverCornerOrnaments(canvas, ornamentRect, sizeScale = 0.14f)
 
         val titlePaint = TextPaint(itemTitlePaint).apply {
             textSize = sp(26f)
@@ -1307,6 +1365,8 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         drawStaticLayout(canvas, sourceLayout, contentLeft, y)
         y += sourceLayout.height + gap2
         drawStaticLayout(canvas, bodyLayout, contentLeft, y)
+        canvas.restoreToCount(layer)
+        layerAlphaPaint.alpha = previousAlpha
     }
 
     private fun drawCompletedState(canvas: Canvas, alpha: Float) {
@@ -1321,9 +1381,21 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         layerAlphaPaint.alpha = (255f * alpha.coerceIn(0f, 1f)).roundToInt().coerceIn(0, 255)
         val layer = canvas.saveLayer(rect, layerAlphaPaint)
 
-        completionTexture?.let { texture ->
-            canvas.drawBitmap(texture, null, rect, completionImagePaint)
-        }
+        drawPaperPanel(
+            canvas = canvas,
+            rect = rect,
+            pageIndex = 61,
+            clippedCircle = true,
+        )
+        val frameRect = RectF(rect).apply { inset(dp(18f), dp(18f)) }
+        completionCircleStrokePaint.strokeWidth = dp(1.7f)
+        completionCircleStrokePaint.alpha = 180
+        canvas.drawOval(frameRect, completionCircleStrokePaint)
+        frameRect.inset(dp(13f), dp(13f))
+        completionCircleStrokePaint.strokeWidth = dp(0.9f)
+        completionCircleStrokePaint.alpha = 118
+        canvas.drawOval(frameRect, completionCircleStrokePaint)
+        completionCircleStrokePaint.alpha = 255
 
         val completionTitlePaint = TextPaint(titlePaint).apply {
             textSize = sp(33f)
@@ -1978,6 +2050,27 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         }
     }
 
+    private fun drawPaperPanel(
+        canvas: Canvas,
+        rect: RectF,
+        pageIndex: Int,
+        clippedCircle: Boolean,
+    ) {
+        canvas.save()
+        if (clippedCircle) {
+            paperClipPath.reset()
+            paperClipPath.addOval(rect, Path.Direction.CW)
+            canvas.clipPath(paperClipPath)
+        }
+        articlePaint.color = STAMP_PAPER
+        canvas.drawRect(rect, articlePaint)
+        drawPaperBackground(canvas, rect, rotated = pageIndex % 2 == 1)
+        drawPaperAging(canvas, rect, pageIndex)
+        drawArticleSurface(canvas, rect)
+        articlePaint.color = AndroidColor.WHITE
+        canvas.restore()
+    }
+
     private fun drawPaperAging(canvas: Canvas, rect: RectF, pageIndex: Int) {
         paperAgingPaint.shader = LinearGradient(
             rect.left,
@@ -2191,9 +2284,12 @@ private class FoldScrollNativeView(context: Context) : View(context) {
             rect.centerX() + labelWidth / 2f,
             rect.centerY() + labelHeight / 2f,
         )
-        articlePaint.color = AndroidColor.rgb(247, 240, 219)
-        canvas.drawRect(label, articlePaint)
-        articlePaint.color = AndroidColor.WHITE
+        drawPaperPanel(
+            canvas = canvas,
+            rect = label,
+            pageIndex = 73,
+            clippedCircle = false,
+        )
         drawInsideStrokeRect(canvas, label, goldPaint)
         val innerInset = dp(6f)
         val innerLabel = RectF(
@@ -2225,9 +2321,24 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         canvas.drawRect(strokeRect, paint)
     }
 
-    private fun drawCoverCornerOrnaments(canvas: Canvas, innerLabel: RectF) {
+    private fun drawDoubleGoldFrame(canvas: Canvas, rect: RectF, outerInset: Float, innerInset: Float) {
+        val outer = RectF(rect).apply {
+            inset(outerInset, outerInset)
+        }
+        val inner = RectF(rect).apply {
+            inset(innerInset, innerInset)
+        }
+        drawInsideStrokeRect(canvas, outer, goldPaint)
+        drawInsideStrokeRect(canvas, inner, goldPaint)
+    }
+
+    private fun drawCoverCornerOrnaments(
+        canvas: Canvas,
+        innerLabel: RectF,
+        sizeScale: Float = 0.22f,
+    ) {
         val texture = coverCornerTexture ?: return
-        val cornerSize = min(innerLabel.width(), innerLabel.height()) * 0.22f
+        val cornerSize = min(innerLabel.width(), innerLabel.height()) * sizeScale
         drawCoverCornerOrnament(
             canvas = canvas,
             texture = texture,
@@ -2827,7 +2938,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         coverFinalStamp = null
         coverFinalStampFromButton = false
         coverFinalStampStrength = 0f
-        summaryVisible = false
+        hideSummary(animated = false)
         summaryPinnedByTap = false
         summaryPinnedAtDown = false
         summaryShownByHold = false
@@ -2866,7 +2977,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
 
     private fun advanceAfterVerdict() {
         removeCallbacks(showSummaryRunnable)
-        summaryVisible = false
+        hideSummary(animated = false)
         summaryPinnedByTap = false
         summaryPinnedAtDown = false
         summaryShownByHold = false
