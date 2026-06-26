@@ -707,6 +707,7 @@ private fun TwoPaneLayout(
                 onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                 onOpenClipboard = stateStore::openLatestClipboardDialog,
                 onOpenMemorialDemo = onOpenMemorialDemo,
+                showMinistryGrid = false,
             )
         }
 

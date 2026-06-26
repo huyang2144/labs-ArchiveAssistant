@@ -69,6 +69,7 @@ fun HomePane(
     onOpenMemorialDemo: (() -> Unit)? = null,
     isSmartSummarizing: Boolean = false,
     smartSummarizationMessage: String? = null,
+    showMinistryGrid: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     PaneContainer(modifier = modifier.testTag("home-pane")) {
@@ -184,29 +185,133 @@ fun HomePane(
                         }
                     }
                     val displayTopics = ministryOrderedTopics(recentTopics)
-                    displayTopics.chunked(2).forEach { rowTopics ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            rowTopics.forEach { topic ->
-                                TopicCard(
-                                    topic = topic,
-                                    itemCount = itemsByTopic[topic.id]?.size ?: 0,
-                                    searchQuery = searchQuery,
-                                    onClick = { onTopicSelected(topic.id) },
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            if (rowTopics.size == 1) {
-                                Spacer(modifier = Modifier.weight(1f))
+                    if (showMinistryGrid) {
+                        displayTopics.chunked(2).forEach { rowTopics ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                rowTopics.forEach { topic ->
+                                    TopicCard(
+                                        topic = topic,
+                                        itemCount = itemsByTopic[topic.id]?.size ?: 0,
+                                        searchQuery = searchQuery,
+                                        onClick = { onTopicSelected(topic.id) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                if (rowTopics.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
                             }
                         }
+                    } else {
+                        MinistryIndexStrip(
+                            topics = displayTopics,
+                            itemsByTopic = itemsByTopic,
+                            onTopicSelected = onTopicSelected,
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MinistryIndexStrip(
+    topics: List<Topic>,
+    itemsByTopic: Map<String, List<KnowledgeItem>>,
+    onTopicSelected: (String) -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f),
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "六部索引",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "${topics.sumOf { itemsByTopic[it.id]?.size ?: 0 }} 项案牍",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                topics.take(6).forEach { topic ->
+                    MinistryIndexChip(
+                        topic = topic,
+                        itemCount = itemsByTopic[topic.id]?.size ?: 0,
+                        onClick = { onTopicSelected(topic.id) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            Text(
+                text = "快速跳转至对应部档",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MinistryIndexChip(
+    topic: Topic,
+    itemCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val ministry = SixMinistryCatalog.profileForTopicId(topic.id)
+    val accent = ministry?.color ?: parseColor(topic.iconColor)
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.medium,
+        color = accent.copy(alpha = 0.08f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.24f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = ministry?.name?.take(1) ?: topic.title.take(1),
+                style = MaterialTheme.typography.titleMedium,
+                color = accent,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = itemCount.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
         }
     }
 }
