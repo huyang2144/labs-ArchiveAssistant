@@ -16,23 +16,23 @@ import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
     primary = DarkTerracotta,
-    onPrimary = DarkIvory,
+    onPrimary = ImperialIvory,
     secondary = DarkCoral,
-    onSecondary = DarkIvory,
+    onSecondary = ImperialIvory,
     tertiary = DarkMuted,
-    onTertiary = DarkIvory,
+    onTertiary = ImperialIvory,
     background = DarkParchment,
-    onBackground = Ivory,
+    onBackground = ImperialIvory,
     surface = DarkIvory,
-    onSurface = Ivory,
+    onSurface = ImperialUmber,
     surfaceVariant = DarkWarmSurfaceVariant,
-    onSurfaceVariant = DarkMuted,
+    onSurfaceVariant = ImperialUmber,
     outline = DarkWarmBorder,
     outlineVariant = DarkWarmSurface,
-    inverseSurface = Ivory,
-    inverseOnSurface = DarkText,
-    error = Color(0xFFB3261E),
-    onError = Ivory,
+    inverseSurface = ImperialIvory,
+    inverseOnSurface = ImperialUmber,
+    error = ImperialCinnabar,
+    onError = ImperialIvory,
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -52,7 +52,7 @@ private val LightColorScheme = lightColorScheme(
     outlineVariant = WarmSurface,
     inverseSurface = DarkText,
     inverseOnSurface = Ivory,
-    error = Color(0xFFB3261E),
+    error = ImperialCinnabar,
     onError = Ivory,
 )
 

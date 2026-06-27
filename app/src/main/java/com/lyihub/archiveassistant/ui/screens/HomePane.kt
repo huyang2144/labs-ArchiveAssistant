@@ -43,15 +43,21 @@ import com.lyihub.archiveassistant.R
 import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.domain.Topic
 import com.lyihub.archiveassistant.ui.components.PaneContainer
+import com.lyihub.archiveassistant.ui.theme.ImperialBronze
+import com.lyihub.archiveassistant.ui.theme.ImperialCinnabar
+import com.lyihub.archiveassistant.ui.theme.ImperialIvory
+import com.lyihub.archiveassistant.ui.theme.ImperialLightGold
+import com.lyihub.archiveassistant.ui.theme.ImperialParchment
+import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 
-private val PalaceGreen = Color(0xFF0F5A43)
-private val PalaceGreenDeep = Color(0xFF0A3D31)
-private val PalaceGreenDark = Color(0xFF092E27)
-private val PalaceGold = Color(0xFFD6A43A)
-private val PalaceGoldBlock = Color(0xFFE0B13C)
-private val PalaceInk = Color(0xFF20352D)
-private val PalacePaper = Color(0xFFFFF7E1)
-private val PalaceGridLine = Color(0xFF5E8A5E)
+private val PalaceGreen = ImperialParchment
+private val PalaceGreenDeep = ImperialIvory
+private val PalaceGreenDark = ImperialUmber
+private val PalaceGold = ImperialUmber
+private val PalaceGoldBlock = ImperialLightGold
+private val PalaceInk = ImperialUmber
+private val PalacePaper = ImperialIvory
+private val PalaceGridLine = ImperialBronze
 
 private val DashboardFallbackTitles = listOf(
     "大模型架构研究",
@@ -457,7 +463,7 @@ private fun TitleCell(
             Text(
                 text = "中书录入 · 门下递奏 · 尚书归档",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.78f),
+                color = ImperialUmber.copy(alpha = 0.72f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -500,7 +506,7 @@ private fun StatusCell(
             Text(
                 text = "中书录入 · 门下递奏 · 尚书归档",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.78f),
+                color = ImperialUmber.copy(alpha = 0.72f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -529,7 +535,7 @@ private fun InlineMetric(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.66f),
+            color = ImperialUmber.copy(alpha = 0.62f),
         )
     }
 }
@@ -551,7 +557,7 @@ private fun PalaceActionCell(
             .fillMaxSize()
             .clickable(enabled = enabled, onClick = onClick)
             .testTag(testTag),
-        color = if (enabled) color else Color(0xFF9B9B83),
+        color = if (enabled) color else ImperialParchment,
         contentColor = contentColor,
     ) {
         DecorativePlaceholder(
@@ -643,7 +649,7 @@ private fun SearchCell(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White.copy(alpha = 0.54f))
+                            .background(ImperialIvory.copy(alpha = 0.74f))
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                     ) {
                         if (searchQuery.isBlank()) {
@@ -745,7 +751,7 @@ private fun WorkflowCell(title: String, subtitle: String, modifier: Modifier = M
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.68f),
+                color = ImperialUmber.copy(alpha = 0.62f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -785,7 +791,7 @@ private fun FolderHeaderRow(
                 Text(
                     text = "六个固定文件夹",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.66f),
+                    color = ImperialUmber.copy(alpha = 0.62f),
                 )
             }
         }
@@ -922,7 +928,7 @@ private fun HiddenParserInput(
         Text(
             text = message,
             style = MaterialTheme.typography.labelSmall,
-            color = Color(0xFF8B2E24),
+            color = ImperialCinnabar,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

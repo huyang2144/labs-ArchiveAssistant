@@ -85,6 +85,12 @@ import com.lyihub.archiveassistant.state.AddItemDialogPrefill
 import com.lyihub.archiveassistant.ui.components.ActionButton
 import com.lyihub.archiveassistant.ui.components.PaneContainer
 import com.lyihub.archiveassistant.ui.components.TextActionButton
+import com.lyihub.archiveassistant.ui.theme.ImperialBronze
+import com.lyihub.archiveassistant.ui.theme.ImperialCinnabar
+import com.lyihub.archiveassistant.ui.theme.ImperialIvory
+import com.lyihub.archiveassistant.ui.theme.ImperialLightGold
+import com.lyihub.archiveassistant.ui.theme.ImperialParchment
+import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.lyihub.archiveassistant.data.copyUriToFile
@@ -100,16 +106,16 @@ private val DetailTabTypes = listOf(
     ContentType.DOCUMENT,
 )
 
-private val DetailPalaceGreen = Color(0xFF0A3D31)
-private val DetailPalaceGreenMid = Color(0xFF0F5A43)
-private val DetailPalaceGreenDark = Color(0xFF082B24)
-private val DetailPalaceGold = Color(0xFFD6A43A)
-private val DetailPalaceGoldBlock = Color(0xFFE0B13C)
-private val DetailPaper = Color(0xFFFFF7E1)
-private val DetailPaperDeep = Color(0xFFE7D4A2)
-private val DetailInk = Color(0xFF24362D)
-private val DetailCinnabar = Color(0xFF8F2E20)
-private val DetailLine = Color(0xFF6A8F62)
+private val DetailPalaceGreen = ImperialIvory
+private val DetailPalaceGreenMid = ImperialParchment
+private val DetailPalaceGreenDark = ImperialUmber
+private val DetailPalaceGold = ImperialUmber
+private val DetailPalaceGoldBlock = ImperialLightGold
+private val DetailPaper = ImperialIvory
+private val DetailPaperDeep = ImperialParchment
+private val DetailInk = ImperialUmber
+private val DetailCinnabar = ImperialCinnabar
+private val DetailLine = ImperialBronze
 
 private const val FileProviderAuthoritySuffix = ".fileprovider"
 
@@ -286,7 +292,7 @@ private fun DetailCourtHeader(
                 Text(
                     text = "一篇一折 · 共 $itemCount 篇",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.72f),
+                    color = ImperialUmber.copy(alpha = 0.72f),
                 )
             }
         }
@@ -547,9 +553,9 @@ private fun PaperVeil(modifier: Modifier = Modifier) {
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color.White.copy(alpha = 0.16f),
+                        ImperialIvory.copy(alpha = 0.16f),
                         DetailPaper.copy(alpha = 0.42f),
-                        Color.Black.copy(alpha = 0.05f),
+                        ImperialUmber.copy(alpha = 0.05f),
                     ),
                 ),
             ),

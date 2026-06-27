@@ -7,6 +7,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -42,6 +43,7 @@ import com.lyihub.archiveassistant.ui.screens.DeleteItemConfirmDialog
 import com.lyihub.archiveassistant.ui.screens.DetailPane
 import com.lyihub.archiveassistant.ui.screens.HomePane
 import com.lyihub.archiveassistant.ui.screens.ManagePane
+import com.lyihub.archiveassistant.ui.screens.MemorialBriefingPane
 import com.lyihub.archiveassistant.ui.screens.MemorialDemoOverlay
 import com.lyihub.archiveassistant.ui.screens.SettingsPane
 import kotlinx.coroutines.launch
@@ -135,14 +137,25 @@ fun ArchiveAssistantApp(
             .fillMaxSize()
             .testTag(layoutModeTag),
     ) {
-        SinglePaneLayout(
-            stateStore = effectiveStateStore,
-            onAiSettingsChanged = onAiSettingsChanged,
-            presets = presets,
-            onPresetsChanged = onPresetsChanged,
-            onChooseModelFile = onChooseModelFile,
-            onOpenMemorialDemo = openMemorialDemo,
-        )
+        if (layoutInfo.mode == LayoutMode.COMPACT) {
+            SinglePaneLayout(
+                stateStore = effectiveStateStore,
+                onAiSettingsChanged = onAiSettingsChanged,
+                presets = presets,
+                onPresetsChanged = onPresetsChanged,
+                onChooseModelFile = onChooseModelFile,
+                onOpenMemorialDemo = openMemorialDemo,
+            )
+        } else {
+            WideWorkspaceLayout(
+                stateStore = effectiveStateStore,
+                onAiSettingsChanged = onAiSettingsChanged,
+                presets = presets,
+                onPresetsChanged = onPresetsChanged,
+                onChooseModelFile = onChooseModelFile,
+                onOpenMemorialDemo = openMemorialDemo,
+            )
+        }
 
         state.modalItem?.let { item ->
             CardModal(
@@ -643,6 +656,111 @@ private fun SinglePaneLayout(
                     onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                     onOpenClipboard = stateStore::openLatestClipboardDialog,
                     onOpenMemorialDemo = onOpenMemorialDemo,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WideWorkspaceLayout(
+    stateStore: ArchiveAssistantStateStore,
+    onAiSettingsChanged: (AiEngineSettings) -> Unit,
+    presets: List<AiEnginePreset>,
+    onPresetsChanged: (List<AiEnginePreset>) -> Unit,
+    onChooseModelFile: () -> Unit,
+    onOpenMemorialDemo: () -> Unit,
+) {
+    val state = stateStore.state
+    Row(modifier = Modifier.fillMaxSize()) {
+        HomePane(
+            title = "聚合拾遗",
+            parserInput = state.parserInput,
+            parserValidationMessage = state.parserValidationMessage,
+            recentTopics = state.searchedTopics,
+            itemsByTopic = state.itemsByTopic,
+            searchQuery = state.homeSearchQuery,
+            isSmartSummarizing = state.isSmartSummarizing,
+            smartSummarizationMessage = state.smartSummarizationMessage,
+            onParserInputChanged = stateStore::updateParserInput,
+            onSubmitParserInput = stateStore::submitParserInput,
+            onTopicSelected = stateStore::openTopic,
+            onOpenSettings = stateStore::openSettings,
+            onOpenManage = stateStore::openTopicManagement,
+            onCreateTopic = stateStore::openTopicManagementForCreate,
+            onSearchQueryChanged = stateStore::updateHomeSearchQuery,
+            onOpenClipboard = stateStore::openLatestClipboardDialog,
+            onOpenMemorialDemo = onOpenMemorialDemo,
+            modifier = Modifier.weight(0.93f),
+        )
+
+        Box(modifier = Modifier.weight(1.07f)) {
+            when (state.selectedPane) {
+                AppPane.TOPICS,
+                AppPane.CLASSIFICATION_REVIEW -> MemorialBriefingPane(
+                    pendingCount = state.topics.take(3).sumOf { topic ->
+                        ((state.itemsByTopic[topic.id]?.size ?: 0) + topic.title.length) % 3
+                    },
+                    onOpenMemorialDemo = onOpenMemorialDemo,
+                )
+
+                AppPane.DETAIL,
+                AppPane.CARD_DETAIL -> {
+                    val topic = state.selectedTopic
+                    if (topic != null) {
+                        DetailPane(
+                            topic = topic,
+                            items = state.filteredSelectedTopicItems,
+                            activeFilter = state.activeDetailFilter,
+                            searchQuery = state.homeSearchQuery,
+                            onBack = stateStore::closePanes,
+                            onFilterSelected = stateStore::selectFilter,
+                            onItemClick = stateStore::openCardModal,
+                            onAddItemClick = stateStore::openAddItemDialog,
+                        )
+                    } else {
+                        MemorialBriefingPane(
+                            pendingCount = 0,
+                            onOpenMemorialDemo = onOpenMemorialDemo,
+                        )
+                    }
+                }
+
+                AppPane.SETTINGS -> SettingsPane(
+                    aiSettings = state.aiSettings,
+                    onAiSettingsChanged = onAiSettingsChanged,
+                    onBack = stateStore::closePanes,
+                    presets = presets,
+                    onPresetsChanged = onPresetsChanged,
+                    onDownloadModel = stateStore::downloadModel,
+                    onChooseModelFile = onChooseModelFile,
+                    onCancelDownload = stateStore::cancelDownload,
+                    onStartModel = stateStore::startModel,
+                    onStopModel = stateStore::stopModel,
+                    onBackendPreferenceChange = stateStore::updateBackendPreference,
+                    onRunBenchmark = stateStore::runBenchmark,
+                    localModelState = state.localModelState,
+                    benchmarkResult = state.benchmarkResult,
+                    isBenchmarkRunning = state.isBenchmarkRunning,
+                )
+
+                AppPane.MANAGE -> ManagePane(
+                    topics = state.topics,
+                    itemsByTopic = state.itemsByTopic,
+                    onBack = stateStore::closePanes,
+                    onTopicSelected = stateStore::openTopic,
+                    onCreateTopic = stateStore::openCreateTopicDialog,
+                    onRenameTopic = stateStore::openRenameTopicDialog,
+                    onDeleteTopic = stateStore::openDeleteConfirmDialog,
+                    onConfirmCreateTopic = stateStore::confirmCreateTopic,
+                    onConfirmRenameTopic = stateStore::confirmRenameTopic,
+                    onConfirmDeleteTopic = stateStore::confirmDeleteTopic,
+                    onCloseTopicNameDialog = stateStore::closeTopicNameDialog,
+                    onCloseDeleteConfirmDialog = stateStore::closeDeleteConfirmDialog,
+                    topicNameDialogMode = state.topicNameDialogMode,
+                    topicNameDialogTopicId = state.topicNameDialogTopicId,
+                    topicValidationMessage = state.topicValidationMessage,
+                    deleteConfirmTopicId = state.deleteConfirmTopicId,
                 )
             }
         }
