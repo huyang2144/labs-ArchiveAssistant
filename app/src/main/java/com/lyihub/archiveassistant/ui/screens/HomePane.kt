@@ -104,6 +104,8 @@ fun HomePane(
     searchQuery: String,
     onTopicSelected: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenManage: () -> Unit,
+    onCreateTopic: () -> Unit,
     onSearchQueryChanged: (String) -> Unit,
     onOpenClipboard: () -> Unit,
     onOpenMemorialDemo: (() -> Unit)? = null,
@@ -111,7 +113,7 @@ fun HomePane(
     modifier: Modifier = Modifier,
 ) {
     val pendingCount = pendingCount(recentTopics, itemsByTopic)
-    val folders = dashboardFolders(recentTopics, itemsByTopic)
+    val folders = dashboardFolders(recentTopics, itemsByTopic, searchQuery)
 
     BoxWithConstraints(
         modifier = modifier
@@ -152,6 +154,8 @@ fun HomePane(
                         onSearchQueryChanged = onSearchQueryChanged,
                         onTopicSelected = onTopicSelected,
                         onOpenSettings = onOpenSettings,
+                        onOpenManage = onOpenManage,
+                        onCreateTopic = onCreateTopic,
                     )
                 } else {
                     CompactMosaic(
@@ -166,6 +170,8 @@ fun HomePane(
                         onSearchQueryChanged = onSearchQueryChanged,
                         onTopicSelected = onTopicSelected,
                         onOpenSettings = onOpenSettings,
+                        onOpenManage = onOpenManage,
+                        onCreateTopic = onCreateTopic,
                     )
                 }
             }
@@ -199,6 +205,8 @@ private fun ColumnScope.ExpandedMosaic(
     onSearchQueryChanged: (String) -> Unit,
     onTopicSelected: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenManage: () -> Unit,
+    onCreateTopic: () -> Unit,
 ) {
     HomeHeaderRow(
         appTitle = appTitle,
@@ -244,7 +252,14 @@ private fun ColumnScope.ExpandedMosaic(
         )
         WorkflowRow(modifier = Modifier.weight(1.8f))
     }
-    MinistryHeaderRow(searchQuery = searchQuery)
+    MinistryHeaderRow(
+        searchQuery = searchQuery,
+        resultCount = folders.count { it.topic != null },
+    )
+    MinistryActionRow(
+        onCreateTopic = onCreateTopic,
+        onOpenManage = onOpenManage,
+    )
     FolderResultList(
         folders = folders,
         searchQuery = searchQuery,
@@ -266,6 +281,8 @@ private fun ColumnScope.CompactMosaic(
     onSearchQueryChanged: (String) -> Unit,
     onTopicSelected: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenManage: () -> Unit,
+    onCreateTopic: () -> Unit,
 ) {
     HomeHeaderRow(
         appTitle = appTitle,
@@ -308,7 +325,14 @@ private fun ColumnScope.CompactMosaic(
             .height(104.dp),
     )
     WorkflowRow(modifier = Modifier.height(76.dp))
-    MinistryHeaderRow(searchQuery = searchQuery)
+    MinistryHeaderRow(
+        searchQuery = searchQuery,
+        resultCount = folders.count { it.topic != null },
+    )
+    MinistryActionRow(
+        onCreateTopic = onCreateTopic,
+        onOpenManage = onOpenManage,
+    )
     FolderResultList(
         folders = folders,
         searchQuery = searchQuery,
@@ -609,6 +633,7 @@ private fun WorkflowCell(title: String, subtitle: String, modifier: Modifier = M
 @Composable
 private fun MinistryHeaderRow(
     searchQuery: String,
+    resultCount: Int,
 ) {
     MosaicCell(
         modifier = Modifier
@@ -629,9 +654,77 @@ private fun MinistryHeaderRow(
                 fontWeight = FontWeight.Normal,
             )
             Text(
-                text = if (searchQuery.isBlank()) "六个固定文件夹" else "按「$searchQuery」筛选",
+                text = if (searchQuery.isBlank()) "六个固定文件夹" else "按「$searchQuery」检出 $resultCount 类",
                 style = MaterialTheme.typography.bodySmall,
                 color = ImperialUmber.copy(alpha = 0.62f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MinistryActionRow(
+    onCreateTopic: () -> Unit,
+    onOpenManage: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(68.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        MinistryActionButton(
+            title = "新建",
+            subtitle = "新立一夹",
+            onClick = onCreateTopic,
+            testTag = "home-create-topic-button",
+            modifier = Modifier.weight(1f),
+        )
+        MinistryActionButton(
+            title = "管理",
+            subtitle = "整理六类",
+            onClick = onOpenManage,
+            testTag = "manage-button",
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun MinistryActionButton(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    testTag: String,
+    modifier: Modifier = Modifier,
+) {
+    MosaicCell(
+        modifier = modifier
+            .fillMaxSize()
+            .clickable(onClick = onClick)
+            .testTag(testTag),
+        color = ImperialLightGold,
+        contentColor = PalaceInk,
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                color = PalaceInk,
+                fontWeight = FontWeight.Normal,
+                maxLines = 1,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = PalaceInk.copy(alpha = 0.68f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -842,7 +935,19 @@ private fun pendingCount(
 private fun dashboardFolders(
     topics: List<Topic>,
     itemsByTopic: Map<String, List<KnowledgeItem>>,
+    searchQuery: String = "",
 ): List<DashboardFolder> {
+    if (searchQuery.isNotBlank()) {
+        return topics.map { topic ->
+            DashboardFolder(
+                id = topic.id,
+                title = topic.title,
+                itemCount = itemsByTopic[topic.id]?.size ?: 0,
+                updatedAtEpochMillis = topic.updatedAtEpochMillis,
+                topic = topic,
+            )
+        }
+    }
     return List(6) { index ->
         val topic = topics.getOrNull(index)
         DashboardFolder(

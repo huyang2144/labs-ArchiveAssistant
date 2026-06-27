@@ -64,6 +64,7 @@ private const val MemorialWheelDragDegreesPerPixel = -0.18f
 private const val MemorialWheelActiveScale = 1.58f
 private const val MemorialWheelFocusHalfRangeDegrees = 24f
 private const val MemorialWheelCoverSeed = 20260627
+private const val MemorialWheelDuplicateGuard = 3
 private val MemorialInk = Color.Black
 
 @Composable
@@ -219,18 +220,85 @@ private fun buildWheelCoverSequence(
 ): List<Int> {
     if (coverResources.isEmpty()) return emptyList()
     val random = Random(seed)
-    val pool = coverResources.shuffled(random).toMutableList()
-    val sequence = mutableListOf<Int>()
-    repeat(itemCount) {
-        if (pool.isEmpty()) {
-            pool += coverResources.shuffled(random)
+    val uniqueResources = coverResources.distinct()
+    val guard = min(MemorialWheelDuplicateGuard, (uniqueResources.size - 1).coerceAtLeast(0))
+    if (guard == 0) return List(itemCount) { coverResources[it % coverResources.size] }
+
+    repeat(160) {
+        val sequence = mutableListOf<Int>()
+        while (sequence.size < itemCount) {
+            val candidate = uniqueResources
+                .shuffled(random)
+                .firstOrNull { resource ->
+                    sequence.takeLast(guard).none { recent -> recent == resource }
+                } ?: uniqueResources.random(random)
+            sequence += candidate
         }
-        val candidateIndex = pool.indexOfFirst { candidate ->
-            sequence.takeLast(3).none { recent -> recent == candidate }
-        }.takeIf { it >= 0 } ?: 0
-        sequence += pool.removeAt(candidateIndex)
+        if (isCircularSequenceValid(sequence, guard)) {
+            return sequence
+        }
+    }
+    return buildGreedyCircularFallback(uniqueResources, itemCount, guard)
+}
+
+private fun buildGreedyCircularFallback(
+    resources: List<Int>,
+    itemCount: Int,
+    guard: Int,
+): List<Int> {
+    val sequence = mutableListOf<Int>()
+    repeat(itemCount) { index ->
+        val candidate = resources
+            .sortedBy { resource -> sequence.count { it == resource } }
+            .firstOrNull { resource ->
+                sequence.takeLast(guard).none { recent -> recent == resource }
+            } ?: resources[index % resources.size]
+        sequence += candidate
+    }
+    repeat(itemCount * resources.size) {
+        if (isCircularSequenceValid(sequence, guard)) {
+            return sequence
+        }
+        val conflictIndex = sequence.indices.firstOrNull { index ->
+            (1..guard).any { distance -> sequence[index] == sequence[(index + distance) % sequence.size] }
+        } ?: return sequence
+        val swapIndex = sequence.indices.firstOrNull { index ->
+            index != conflictIndex && canSwapWithoutNearDuplicate(sequence, conflictIndex, index, guard)
+        } ?: return sequence
+        val tmp = sequence[conflictIndex]
+        sequence[conflictIndex] = sequence[swapIndex]
+        sequence[swapIndex] = tmp
     }
     return sequence
+}
+
+private fun canSwapWithoutNearDuplicate(
+    sequence: List<Int>,
+    firstIndex: Int,
+    secondIndex: Int,
+    guard: Int,
+): Boolean {
+    val mutable = sequence.toMutableList()
+    val tmp = mutable[firstIndex]
+    mutable[firstIndex] = mutable[secondIndex]
+    mutable[secondIndex] = tmp
+    return isCircularSequenceValidAt(mutable, firstIndex, guard) &&
+        isCircularSequenceValidAt(mutable, secondIndex, guard)
+}
+
+private fun isCircularSequenceValid(sequence: List<Int>, guard: Int): Boolean {
+    if (sequence.isEmpty()) return true
+    return sequence.indices.all { index ->
+        isCircularSequenceValidAt(sequence, index, guard)
+    }
+}
+
+private fun isCircularSequenceValidAt(sequence: List<Int>, index: Int, guard: Int): Boolean {
+    if (sequence.isEmpty()) return true
+    return (1..guard).all { distance ->
+        sequence[index] != sequence[(index + distance) % sequence.size] &&
+            sequence[index] != sequence[(index - distance + sequence.size) % sequence.size]
+    }
 }
 
 private fun wheelItemFocus(degrees: Float): Float {

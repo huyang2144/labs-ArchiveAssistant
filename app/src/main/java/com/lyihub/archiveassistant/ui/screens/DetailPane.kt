@@ -154,6 +154,8 @@ fun DetailPane(
     onItemClick: (String) -> Unit,
     onAddItemClick: () -> Unit,
     modifier: Modifier = Modifier,
+    showBackButton: Boolean = true,
+    forceMasonry: Boolean = false,
 ) {
     PaneContainer(
         modifier = modifier
@@ -175,6 +177,7 @@ fun DetailPane(
             )
             PaperVeil(modifier = Modifier.matchParentSize())
             val expanded = maxWidth >= 520.dp
+            val useMasonry = forceMasonry || maxWidth >= 360.dp
             val horizontalPadding = if (expanded) 28.dp else 16.dp
             val maxContentWidth = if (expanded) 980.dp else 560.dp
 
@@ -198,6 +201,7 @@ fun DetailPane(
                         onAddItemClick = onAddItemClick,
                         onFilterSelected = onFilterSelected,
                         modifier = Modifier.widthIn(max = maxContentWidth),
+                        showBackButton = showBackButton,
                     )
                 }
                 if (items.isEmpty()) {
@@ -209,7 +213,7 @@ fun DetailPane(
                         )
                     }
                 } else {
-                    if (expanded) {
+                    if (useMasonry) {
                         item {
                             ArticleMasonryGrid(
                                 items = items,
@@ -284,24 +288,25 @@ private fun DetailCourtHeader(
     onAddItemClick: () -> Unit,
     onFilterSelected: (ContentType) -> Unit,
     modifier: Modifier = Modifier,
+    showBackButton: Boolean,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "返回",
-                    tint = DetailPalaceGold,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (showBackButton) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        tint = DetailPalaceGold,
+                    )
+                }
                 DetailIconAction(
                     onClick = onAddItemClick,
                     testTag = "detail-add-item-button",
@@ -312,8 +317,6 @@ private fun DetailCourtHeader(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(DetailPalaceGreenMid)
-                .border(1.dp, DetailLine),
         ) {
             DecorativeDetailImage(
                 modifier = Modifier
@@ -326,20 +329,20 @@ private fun DetailCourtHeader(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                    .padding(horizontal = 6.dp, vertical = if (showBackButton) 12.dp else 18.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
                     text = topic.title,
-                    style = MaterialTheme.typography.displayMedium,
+                    style = MaterialTheme.typography.displayLarge,
                     color = DetailPalaceGold,
                     fontWeight = FontWeight.Normal,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "尚书归档，共 $itemCount 篇。按奏折样式列陈，便于快速浏览、筛选与复查。",
-                    style = MaterialTheme.typography.titleSmall,
+                    text = "尚书归档，共 $itemCount 篇。两列铺陈，便于快速浏览、筛选与复查。",
+                    style = MaterialTheme.typography.titleMedium,
                     color = DetailInk.copy(alpha = 0.78f),
                 )
             }

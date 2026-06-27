@@ -84,6 +84,17 @@ data class ArchiveAssistantState(
     val filteredSelectedTopicItems: List<KnowledgeItem> = when (activeDetailFilter) {
         ContentType.ALL -> selectedTopicItems
         else -> selectedTopicItems.filter { it.contentType == activeDetailFilter }
+    }.let { filteredItems ->
+        if (homeSearchQuery.isBlank()) {
+            filteredItems
+        } else {
+            val query = homeSearchQuery.lowercase()
+            filteredItems.filter { item ->
+                item.title.lowercase().contains(query) ||
+                    item.summary.lowercase().contains(query) ||
+                    item.fullText.lowercase().contains(query)
+            }
+        }
     }
 
     val recentTopics: List<Topic> = topics
