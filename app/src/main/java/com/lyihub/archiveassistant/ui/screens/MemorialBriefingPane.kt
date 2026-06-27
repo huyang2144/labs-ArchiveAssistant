@@ -174,15 +174,17 @@ private fun MemorialCoverWheel(
             modifier = Modifier.fillMaxSize(),
         )
         val wheelItems = remember(startDegrees) {
+            val seamIndex = floorMod(((-startDegrees + 45f) / stepDegrees).roundToInt(), MemorialWheelItemCount)
             List(MemorialWheelItemCount) { index ->
                 val degrees = startDegrees + index * stepDegrees
                 WheelItemPlacement(
                     index = index,
+                    drawOrder = floorMod(index - seamIndex, MemorialWheelItemCount),
                     degrees = degrees,
                     resId = shuffledCoverResources[index],
                     focus = wheelItemFocus(degrees),
                 )
-            }
+            }.sortedBy { it.drawOrder }
         }
         wheelItems.forEach { item ->
             key(item.index) {
@@ -204,6 +206,7 @@ private fun MemorialCoverWheel(
 
 private data class WheelItemPlacement(
     val index: Int,
+    val drawOrder: Int,
     val degrees: Float,
     val resId: Int,
     val focus: Float,
@@ -233,6 +236,16 @@ private fun buildWheelCoverSequence(
 private fun wheelItemFocus(degrees: Float): Float {
     val distance = angularDistanceDegrees(degrees, MemorialActiveSlotDegrees)
     return (1f - distance / MemorialWheelFocusHalfRangeDegrees).coerceIn(0f, 1f)
+}
+
+private fun floorMod(value: Int, modulus: Int): Int = ((value % modulus) + modulus) % modulus
+
+private fun lerpFloat(start: Float, stop: Float, fraction: Float): Float {
+    return start + (stop - start) * fraction.coerceIn(0f, 1f)
+}
+
+private fun lerpDp(start: Dp, stop: Dp, fraction: Float): Dp {
+    return start + (stop - start) * fraction.coerceIn(0f, 1f)
 }
 
 private fun angularDistanceDegrees(a: Float, b: Float): Float {
@@ -302,13 +315,15 @@ private fun MemorialWheelCover(
     focus: Float,
     modifier: Modifier = Modifier,
 ) {
-    val active = focus > 0.52f
     val coverScale = 1f + (MemorialWheelActiveScale - 1f) * focus
-    val borderAlpha = 0.46f + 0.24f * focus
+    val borderAlpha = lerpFloat(0.46f, 0.7f, focus)
     val radians = Math.toRadians(degrees.toDouble())
     val height = width / MemorialCoverAspect
     val x = centerX + radius * cos(radians).toFloat() - width / 2f
     val y = centerY + radius * sin(radians).toFloat() - height * 0.75f
+    val cornerRadius = lerpDp(3.dp, 5.dp, focus)
+    val borderWidth = lerpDp(0.8.dp, 1.4.dp, focus)
+    val innerBorderWidth = lerpDp(3.dp, 5.dp, focus)
     Box(
         modifier = modifier,
     ) {
@@ -323,15 +338,11 @@ private fun MemorialWheelCover(
                     scaleX = coverScale,
                     scaleY = coverScale,
                 )
-                .background(ImperialParchment, RoundedCornerShape(if (active) 5.dp else 3.dp))
+                .background(ImperialParchment, RoundedCornerShape(cornerRadius))
                 .border(
-                    width = if (active) 1.4.dp else 0.8.dp,
-                    color = if (active) {
-                        ImperialCinnabar.copy(alpha = borderAlpha)
-                    } else {
-                        ImperialBronze.copy(alpha = borderAlpha)
-                    },
-                    shape = RoundedCornerShape(if (active) 5.dp else 3.dp),
+                    width = borderWidth,
+                    color = ImperialBronze.copy(alpha = borderAlpha),
+                    shape = RoundedCornerShape(cornerRadius),
                 ),
         ) {
             Image(
@@ -347,7 +358,7 @@ private fun MemorialWheelCover(
                         Brush.verticalGradient(
                             listOf(
                                 Color.White.copy(alpha = 0.05f),
-                                ImperialUmber.copy(alpha = if (active) 0.08f else 0.13f),
+                                ImperialUmber.copy(alpha = lerpFloat(0.13f, 0.08f, focus)),
                             ),
                         ),
                     ),
@@ -356,13 +367,13 @@ private fun MemorialWheelCover(
                 modifier = Modifier
                     .fillMaxSize()
                     .border(
-                        width = if (active) 5.dp else 3.dp,
-                        color = ImperialIvory.copy(alpha = if (active) 0.24f else 0.18f),
-                        shape = RoundedCornerShape(if (active) 5.dp else 3.dp),
+                        width = innerBorderWidth,
+                        color = ImperialIvory.copy(alpha = lerpFloat(0.18f, 0.24f, focus)),
+                        shape = RoundedCornerShape(cornerRadius),
                     ),
             )
             MemorialCoverLabel(
-                active = active,
+                focus = focus,
                 modifier = Modifier.align(Alignment.Center),
             )
         }
@@ -371,64 +382,66 @@ private fun MemorialWheelCover(
 
 @Composable
 private fun MemorialCoverLabel(
-    active: Boolean,
+    focus: Float,
     modifier: Modifier = Modifier,
 ) {
-    val labelWidth = if (active) 0.5f else 0.48f
-    val labelHeight = if (active) 0.58f else 0.56f
+    val labelWidth = lerpFloat(0.48f, 0.5f, focus)
+    val labelHeight = lerpFloat(0.56f, 0.58f, focus)
+    val cornerSize = lerpDp(8.dp, 11.dp, focus)
+    val cornerAlpha = lerpFloat(0.5f, 0.72f, focus)
     BoxWithConstraints(modifier = modifier) {
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .width(maxWidth * labelWidth)
                 .aspectRatio(MemorialCoverAspect / labelHeight * labelWidth)
-                .background(ImperialIvory.copy(alpha = if (active) 0.96f else 0.9f), RoundedCornerShape(2.dp))
-                .border(1.dp, ImperialBronze.copy(alpha = if (active) 0.76f else 0.52f), RoundedCornerShape(2.dp))
-                .padding(if (active) 5.dp else 4.dp),
+                .background(ImperialIvory.copy(alpha = lerpFloat(0.9f, 0.96f, focus)), RoundedCornerShape(2.dp))
+                .border(1.dp, ImperialBronze.copy(alpha = lerpFloat(0.52f, 0.76f, focus)), RoundedCornerShape(2.dp))
+                .padding(lerpDp(4.dp, 5.dp, focus)),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .border(0.8.dp, ImperialBronze.copy(alpha = if (active) 0.66f else 0.46f), RoundedCornerShape(1.dp)),
+                    .border(0.8.dp, ImperialBronze.copy(alpha = lerpFloat(0.46f, 0.66f, focus)), RoundedCornerShape(1.dp)),
             )
             Image(
                 painter = painterResource(id = R.drawable.memorial_cover_corner),
                 contentDescription = null,
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .size(if (active) 11.dp else 8.dp),
-                alpha = if (active) 0.72f else 0.5f,
-                colorFilter = ColorFilter.tint(ImperialCinnabar.copy(alpha = if (active) 0.7f else 0.46f)),
+                    .size(cornerSize),
+                alpha = cornerAlpha,
+                colorFilter = ColorFilter.tint(ImperialCinnabar.copy(alpha = lerpFloat(0.46f, 0.7f, focus))),
             )
             Image(
                 painter = painterResource(id = R.drawable.memorial_cover_corner),
                 contentDescription = null,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .size(if (active) 11.dp else 8.dp)
+                    .size(cornerSize)
                     .graphicsLayer(rotationZ = 90f),
-                alpha = if (active) 0.72f else 0.5f,
-                colorFilter = ColorFilter.tint(ImperialCinnabar.copy(alpha = if (active) 0.7f else 0.46f)),
+                alpha = cornerAlpha,
+                colorFilter = ColorFilter.tint(ImperialCinnabar.copy(alpha = lerpFloat(0.46f, 0.7f, focus))),
             )
             Image(
                 painter = painterResource(id = R.drawable.memorial_cover_corner),
                 contentDescription = null,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(if (active) 11.dp else 8.dp)
+                    .size(cornerSize)
                     .graphicsLayer(rotationZ = 180f),
-                alpha = if (active) 0.72f else 0.5f,
-                colorFilter = ColorFilter.tint(ImperialCinnabar.copy(alpha = if (active) 0.7f else 0.46f)),
+                alpha = cornerAlpha,
+                colorFilter = ColorFilter.tint(ImperialCinnabar.copy(alpha = lerpFloat(0.46f, 0.7f, focus))),
             )
             Image(
                 painter = painterResource(id = R.drawable.memorial_cover_corner),
                 contentDescription = null,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .size(if (active) 11.dp else 8.dp)
+                    .size(cornerSize)
                     .graphicsLayer(rotationZ = 270f),
-                alpha = if (active) 0.72f else 0.5f,
-                colorFilter = ColorFilter.tint(ImperialCinnabar.copy(alpha = if (active) 0.7f else 0.46f)),
+                alpha = cornerAlpha,
+                colorFilter = ColorFilter.tint(ImperialCinnabar.copy(alpha = lerpFloat(0.46f, 0.7f, focus))),
             )
             Column(
                 modifier = Modifier.align(Alignment.Center),
@@ -436,11 +449,11 @@ private fun MemorialCoverLabel(
             ) {
                 Text(
                     text = "奏\n章",
-                    style = if (active) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MemorialInk,
                     fontWeight = FontWeight.Normal,
                     textAlign = TextAlign.Center,
-                    lineHeight = if (active) 28.sp else 25.sp,
+                    lineHeight = 25.sp,
                 )
             }
         }

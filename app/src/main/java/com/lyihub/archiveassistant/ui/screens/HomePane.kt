@@ -98,21 +98,15 @@ private data class DashboardFolder(
 @Composable
 fun HomePane(
     title: String,
-    parserInput: String,
     parserValidationMessage: String?,
     recentTopics: List<Topic>,
     itemsByTopic: Map<String, List<KnowledgeItem>>,
     searchQuery: String,
-    onParserInputChanged: (String) -> Unit,
-    onSubmitParserInput: () -> Unit,
     onTopicSelected: (String) -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenManage: () -> Unit,
-    onCreateTopic: () -> Unit,
     onSearchQueryChanged: (String) -> Unit,
     onOpenClipboard: () -> Unit,
     onOpenMemorialDemo: (() -> Unit)? = null,
-    isSmartSummarizing: Boolean = false,
     smartSummarizationMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -150,19 +144,13 @@ fun HomePane(
                         appTitle = title,
                         pendingCount = pendingCount,
                         folders = folders,
-                        parserInput = parserInput,
                         validationMessage = parserValidationMessage,
                         smartSummarizationMessage = smartSummarizationMessage,
                         searchQuery = searchQuery,
-                        isSmartSummarizing = isSmartSummarizing,
-                        onInputChanged = onParserInputChanged,
-                        onSubmit = onSubmitParserInput,
                         onOpenClipboard = onOpenClipboard,
                         onOpenMemorialDemo = onOpenMemorialDemo,
                         onSearchQueryChanged = onSearchQueryChanged,
                         onTopicSelected = onTopicSelected,
-                        onOpenManage = onOpenManage,
-                        onCreateTopic = onCreateTopic,
                         onOpenSettings = onOpenSettings,
                     )
                 } else {
@@ -170,19 +158,13 @@ fun HomePane(
                         appTitle = title,
                         pendingCount = pendingCount,
                         folders = folders,
-                        parserInput = parserInput,
                         validationMessage = parserValidationMessage,
                         smartSummarizationMessage = smartSummarizationMessage,
                         searchQuery = searchQuery,
-                        isSmartSummarizing = isSmartSummarizing,
-                        onInputChanged = onParserInputChanged,
-                        onSubmit = onSubmitParserInput,
                         onOpenClipboard = onOpenClipboard,
                         onOpenMemorialDemo = onOpenMemorialDemo,
                         onSearchQueryChanged = onSearchQueryChanged,
                         onTopicSelected = onTopicSelected,
-                        onOpenManage = onOpenManage,
-                        onCreateTopic = onCreateTopic,
                         onOpenSettings = onOpenSettings,
                     )
                 }
@@ -209,19 +191,13 @@ private fun ColumnScope.ExpandedMosaic(
     appTitle: String,
     pendingCount: Int,
     folders: List<DashboardFolder>,
-    parserInput: String,
     validationMessage: String?,
     smartSummarizationMessage: String?,
     searchQuery: String,
-    isSmartSummarizing: Boolean,
-    onInputChanged: (String) -> Unit,
-    onSubmit: () -> Unit,
     onOpenClipboard: () -> Unit,
     onOpenMemorialDemo: (() -> Unit)?,
     onSearchQueryChanged: (String) -> Unit,
     onTopicSelected: (String) -> Unit,
-    onOpenManage: () -> Unit,
-    onCreateTopic: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     HomeHeaderRow(
@@ -247,25 +223,12 @@ private fun ColumnScope.ExpandedMosaic(
             onClick = onOpenClipboard,
             testTag = "clipboard-button",
         )
-        PalaceActionCell(
-            title = if (isSmartSummarizing) "拟录中" else "中书拟题",
-            subtitle = "摘要、归类、拟入档",
-            label = "拟录",
-            color = PalaceGreen,
-            contentColor = PalaceGold,
-            modifier = Modifier.weight(1f),
-            enabled = !isSmartSummarizing && parserInput.isNotBlank(),
-            onClick = onSubmit,
-            testTag = "classify-button",
-        )
         SearchCell(
             searchQuery = searchQuery,
             onSearchQueryChanged = onSearchQueryChanged,
-            parserInput = parserInput,
             validationMessage = validationMessage,
             smartSummarizationMessage = smartSummarizationMessage,
-            onInputChanged = onInputChanged,
-            modifier = Modifier.weight(1.25f),
+            modifier = Modifier.weight(2.25f),
         )
     }
     Row(
@@ -281,21 +244,13 @@ private fun ColumnScope.ExpandedMosaic(
         )
         WorkflowRow(modifier = Modifier.weight(1.8f))
     }
-    MinistryHeaderRow(
-        onCreateTopic = onCreateTopic,
-        onOpenManage = onOpenManage,
+    MinistryHeaderRow(searchQuery = searchQuery)
+    FolderResultList(
+        folders = folders,
+        searchQuery = searchQuery,
+        onTopicSelected = onTopicSelected,
+        compact = false,
     )
-    folders.forEachIndexed { index, folder ->
-        MinistryTicketCard(
-            folder = folder,
-            visual = ministryVisual(index),
-            onTopicSelected = onTopicSelected,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(118.dp),
-            compact = false,
-        )
-    }
 }
 
 @Composable
@@ -303,19 +258,13 @@ private fun ColumnScope.CompactMosaic(
     appTitle: String,
     pendingCount: Int,
     folders: List<DashboardFolder>,
-    parserInput: String,
     validationMessage: String?,
     smartSummarizationMessage: String?,
     searchQuery: String,
-    isSmartSummarizing: Boolean,
-    onInputChanged: (String) -> Unit,
-    onSubmit: () -> Unit,
     onOpenClipboard: () -> Unit,
     onOpenMemorialDemo: (() -> Unit)?,
     onSearchQueryChanged: (String) -> Unit,
     onTopicSelected: (String) -> Unit,
-    onOpenManage: () -> Unit,
-    onCreateTopic: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     HomeHeaderRow(
@@ -341,25 +290,12 @@ private fun ColumnScope.CompactMosaic(
             onClick = onOpenClipboard,
             testTag = "clipboard-button",
         )
-        PalaceActionCell(
-            title = if (isSmartSummarizing) "拟录中" else "中书拟题",
-            subtitle = "摘要归类",
-            label = "拟录",
-            color = PalaceGreen,
-            contentColor = PalaceGold,
-            modifier = Modifier.weight(1f),
-            enabled = !isSmartSummarizing && parserInput.isNotBlank(),
-            onClick = onSubmit,
-            testTag = "classify-button",
-        )
     }
     SearchCell(
         searchQuery = searchQuery,
         onSearchQueryChanged = onSearchQueryChanged,
-        parserInput = parserInput,
         validationMessage = validationMessage,
         smartSummarizationMessage = smartSummarizationMessage,
-        onInputChanged = onInputChanged,
         modifier = Modifier
             .fillMaxWidth()
             .height(104.dp),
@@ -372,21 +308,13 @@ private fun ColumnScope.CompactMosaic(
             .height(104.dp),
     )
     WorkflowRow(modifier = Modifier.height(76.dp))
-    MinistryHeaderRow(
-        onCreateTopic = onCreateTopic,
-        onOpenManage = onOpenManage,
+    MinistryHeaderRow(searchQuery = searchQuery)
+    FolderResultList(
+        folders = folders,
+        searchQuery = searchQuery,
+        onTopicSelected = onTopicSelected,
+        compact = true,
     )
-    folders.forEachIndexed { index, folder ->
-        MinistryTicketCard(
-            folder = folder,
-            visual = ministryVisual(index),
-            onTopicSelected = onTopicSelected,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(104.dp),
-            compact = true,
-        )
-    }
 }
 
 @Composable
@@ -517,10 +445,8 @@ private fun PalaceActionCell(
 private fun SearchCell(
     searchQuery: String,
     onSearchQueryChanged: (String) -> Unit,
-    parserInput: String,
     validationMessage: String?,
     smartSummarizationMessage: String?,
-    onInputChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     MosaicCell(
@@ -577,11 +503,17 @@ private fun SearchCell(
                     }
                 },
             )
-            HiddenParserInput(
-                input = parserInput,
-                validationMessage = validationMessage,
-                smartSummarizationMessage = smartSummarizationMessage,
-                onInputChanged = onInputChanged,
+            val message = validationMessage ?: smartSummarizationMessage
+            Text(
+                text = message ?: if (searchQuery.isBlank()) {
+                    "输入后筛选下方文件夹与资料"
+                } else {
+                    "正在筛选相关文件夹"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = if (message == null) PalaceInk.copy(alpha = 0.58f) else ImperialCinnabar,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -676,51 +608,84 @@ private fun WorkflowCell(title: String, subtitle: String, modifier: Modifier = M
 
 @Composable
 private fun MinistryHeaderRow(
-    onCreateTopic: () -> Unit,
-    onOpenManage: () -> Unit,
+    searchQuery: String,
 ) {
-    Row(
+    MosaicCell(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        color = PalaceGreenDark,
+        contentColor = PalaceGold,
     ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(horizontal = 14.dp),
+        ) {
+            Text(
+                text = "尚书省",
+                style = MaterialTheme.typography.titleLarge,
+                color = PalaceGold,
+                fontWeight = FontWeight.Normal,
+            )
+            Text(
+                text = if (searchQuery.isBlank()) "六个固定文件夹" else "按「$searchQuery」筛选",
+                style = MaterialTheme.typography.bodySmall,
+                color = ImperialUmber.copy(alpha = 0.62f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.FolderResultList(
+    folders: List<DashboardFolder>,
+    searchQuery: String,
+    onTopicSelected: (String) -> Unit,
+    compact: Boolean,
+) {
+    if (folders.isEmpty()) {
         MosaicCell(
             modifier = Modifier
-                .weight(2f)
-                .fillMaxSize(),
-            color = PalaceGreenDark,
-            contentColor = PalaceGold,
+                .fillMaxWidth()
+                .height(if (compact) 96.dp else 112.dp),
+            color = PalacePaper,
+            contentColor = PalaceInk,
         ) {
             Column(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .padding(horizontal = 14.dp),
+                    .padding(horizontal = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    text = "尚书省",
+                    text = "未找到相关文件夹",
                     style = MaterialTheme.typography.titleLarge,
-                    color = PalaceGold,
+                    color = PalaceInk,
                     fontWeight = FontWeight.Normal,
                 )
                 Text(
-                    text = "六个固定文件夹 · 新建与管理",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = ImperialUmber.copy(alpha = 0.62f),
+                    text = "藏经阁暂未检出「$searchQuery」相关内容",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = PalaceInk.copy(alpha = 0.68f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
-        HeaderActionCell(
-            text = "新建",
-            onClick = onCreateTopic,
-            testTag = "home-create-topic-button",
-            modifier = Modifier.weight(1f),
-        )
-        HeaderActionCell(
-            text = "管理",
-            onClick = onOpenManage,
-            testTag = "manage-button",
-            modifier = Modifier.weight(1f),
+        return
+    }
+    folders.forEachIndexed { index, folder ->
+        MinistryTicketCard(
+            folder = folder,
+            visual = ministryVisual(index),
+            onTopicSelected = onTopicSelected,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(if (compact) 104.dp else 118.dp),
+            compact = compact,
         )
     }
 }
@@ -788,38 +753,18 @@ private fun MinistryTicketCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = folder.title,
-                        style = titleStyle,
-                        color = PalaceInk,
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 1,
-                    )
-                    Text(
-                        text = visual.duty,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = visual.accent,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                Text(
+                    text = folder.title,
+                    style = titleStyle,
+                    color = PalaceInk,
+                    fontWeight = FontWeight.Normal,
+                    maxLines = 1,
+                )
                 Text(
                     text = visual.description,
                     style = summaryStyle,
                     color = PalaceInk.copy(alpha = 0.84f),
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = visual.duty,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = PalaceInk.copy(alpha = 0.62f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -849,31 +794,6 @@ private fun MinistryTicketCard(
 }
 
 @Composable
-private fun HeaderActionCell(
-    text: String,
-    onClick: () -> Unit,
-    testTag: String,
-    modifier: Modifier = Modifier,
-) {
-    MosaicCell(
-        modifier = modifier
-            .fillMaxSize()
-            .clickable(onClick = onClick)
-            .testTag(testTag),
-        color = PalaceGoldBlock,
-        contentColor = PalaceGreenDark,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleMedium,
-            color = PalaceGreenDark,
-            fontWeight = FontWeight.Normal,
-            modifier = Modifier.align(Alignment.Center),
-        )
-    }
-}
-
-@Composable
 private fun MosaicCell(
     modifier: Modifier,
     color: Color,
@@ -894,35 +814,6 @@ private class BoxScopeWithContentColor(
     private val boxScope: androidx.compose.foundation.layout.BoxScope,
     val contentColor: Color,
 ) : androidx.compose.foundation.layout.BoxScope by boxScope
-
-@Composable
-private fun HiddenParserInput(
-    input: String,
-    validationMessage: String?,
-    smartSummarizationMessage: String?,
-    onInputChanged: (String) -> Unit,
-) {
-    BasicTextField(
-        value = input,
-        onValueChange = onInputChanged,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(0.dp)
-            .alpha(0f)
-            .testTag("parser-input"),
-        singleLine = true,
-    )
-    val message = validationMessage ?: smartSummarizationMessage
-    if (message != null) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.labelSmall,
-            color = ImperialCinnabar,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
 
 @Composable
 private fun DecorativePlaceholder(
