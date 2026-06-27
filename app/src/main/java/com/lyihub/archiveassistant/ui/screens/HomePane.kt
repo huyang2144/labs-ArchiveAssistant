@@ -479,7 +479,7 @@ private fun TitleCell(
                 text = appTitle,
                 style = MaterialTheme.typography.displaySmall,
                 color = PalaceGold,
-                fontWeight = FontWeight.Black,
+                fontWeight = FontWeight.Normal,
                 maxLines = 1,
             )
             Text(
@@ -523,7 +523,7 @@ private fun StatusCell(
                 text = "朝堂视角",
                 style = MaterialTheme.typography.headlineSmall,
                 color = PalaceGold,
-                fontWeight = FontWeight.Black,
+                fontWeight = FontWeight.Normal,
                 maxLines = 1,
             )
             Text(
@@ -553,7 +553,7 @@ private fun InlineMetric(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.titleLarge,
             color = PalaceGold,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Normal,
         )
         Text(
             text = label,
@@ -613,7 +613,7 @@ private fun PalaceActionCell(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 color = contentColor,
-                fontWeight = FontWeight.Black,
+                fontWeight = FontWeight.Normal,
                 maxLines = 1,
             )
             Text(
@@ -657,7 +657,7 @@ private fun SearchCell(
                     text = "藏经阁",
                     style = MaterialTheme.typography.titleLarge,
                     color = PalaceInk,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Normal,
                 )
                 Icon(
                     imageVector = Icons.Default.Search,
@@ -733,7 +733,7 @@ private fun MemorialCell(
                 text = "门下递奏",
                 style = MaterialTheme.typography.headlineSmall,
                 color = PalaceGreenDark,
-                fontWeight = FontWeight.Black,
+                fontWeight = FontWeight.Normal,
                 maxLines = 1,
             )
             Text(
@@ -774,7 +774,7 @@ private fun WorkflowCell(title: String, subtitle: String, modifier: Modifier = M
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 color = PalaceGold,
-                fontWeight = FontWeight.Black,
+                fontWeight = FontWeight.Normal,
                 maxLines = 1,
             )
             Text(
@@ -815,7 +815,7 @@ private fun MinistryHeaderRow(
                     text = "尚书六部",
                     style = MaterialTheme.typography.titleLarge,
                     color = PalaceGold,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Normal,
                 )
                 Text(
                     text = "六个固定文件夹 · 点击右侧即阅",
@@ -910,7 +910,7 @@ private fun MinistryTicketCard(
                         text = visual.title,
                         style = titleStyle,
                         color = PalaceInk,
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.Normal,
                         maxLines = 1,
                     )
                     Text(
@@ -981,7 +981,7 @@ private fun HeaderActionCell(
             text = text,
             style = MaterialTheme.typography.titleMedium,
             color = PalaceGreenDark,
-            fontWeight = FontWeight.Black,
+            fontWeight = FontWeight.Normal,
             modifier = Modifier.align(Alignment.Center),
         )
     }

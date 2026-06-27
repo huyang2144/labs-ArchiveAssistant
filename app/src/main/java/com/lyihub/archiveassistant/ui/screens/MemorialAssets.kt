@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color as AndroidColor
 import android.graphics.Typeface
+import androidx.core.content.res.ResourcesCompat
 import com.lyihub.archiveassistant.R
 import kotlin.math.roundToInt
 
@@ -41,6 +42,11 @@ internal class MemorialAssets(context: Context) {
         BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_16),
         BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_17),
         BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_18),
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_19),
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_20),
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_21),
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_22),
+        BitmapFactory.decodeResource(resources, R.drawable.memorial_cover_23),
     )
 
     val buttonTexture: Bitmap? = BitmapFactory.decodeResource(
@@ -63,10 +69,13 @@ internal class MemorialAssets(context: Context) {
     )
 
     val heritageTypeface: Typeface = runCatching {
-        Typeface.createFromAsset(context.assets, "fonts/ma_shan_zheng_regular.ttf")
-    }.getOrElse {
-        Typeface.create(Typeface.SERIF, Typeface.BOLD)
-    }
+        ResourcesCompat.getFont(context, R.font.runzhi_kangxi)
+    }.getOrNull()
+        ?: runCatching {
+            Typeface.createFromAsset(context.assets, "fonts/ma_shan_zheng_regular.ttf")
+        }.getOrElse {
+            Typeface.create(Typeface.SERIF, Typeface.NORMAL)
+        }
 
     private val stampLikeTexture: Bitmap? = BitmapFactory.decodeResource(
         resources,

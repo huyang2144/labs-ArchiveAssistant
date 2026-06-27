@@ -238,7 +238,7 @@ private fun MemorialWheelInnerDisc(
                     text = "轻触阅读",
                     style = if (expanded) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
                     color = ImperialUmber.copy(alpha = 0.62f),
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Normal,
                     textAlign = TextAlign.Center,
                 )
                 Text(
@@ -406,11 +406,11 @@ private fun MemorialCoverLabel(
             ) {
                 Text(
                     text = "奏\n章",
-                    style = if (active) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelMedium,
+                    style = if (active) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall,
                     color = ImperialUmber,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Normal,
                     textAlign = TextAlign.Center,
-                    lineHeight = if (active) MaterialTheme.typography.titleMedium.lineHeight else MaterialTheme.typography.labelMedium.lineHeight,
+                    lineHeight = if (active) MaterialTheme.typography.titleMedium.lineHeight else MaterialTheme.typography.titleSmall.lineHeight,
                 )
                 Text(
                     text = if (active) "甲辰" else ((index % 9) + 1).toString(),
@@ -438,13 +438,13 @@ private fun BriefingCopy(
             text = "奏章",
             style = if (expanded) MaterialTheme.typography.displayLarge else MaterialTheme.typography.displayMedium,
             color = ImperialUmber,
-            fontWeight = FontWeight.Black,
+            fontWeight = FontWeight.Normal,
         )
         Text(
             text = "门下既审，呈于御前",
             style = MaterialTheme.typography.titleMedium,
             color = ImperialUmber.copy(alpha = 0.82f),
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Normal,
         )
         Text(
             text = "今日尚有 $pendingCount 封待批。轻触此页，展开奏章堆叠，准、驳、留中皆可一笔批下。",

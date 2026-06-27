@@ -94,6 +94,11 @@ internal val MemorialCoverResources = listOf(
     R.drawable.memorial_cover_16,
     R.drawable.memorial_cover_17,
     R.drawable.memorial_cover_18,
+    R.drawable.memorial_cover_19,
+    R.drawable.memorial_cover_20,
+    R.drawable.memorial_cover_21,
+    R.drawable.memorial_cover_22,
+    R.drawable.memorial_cover_23,
 )
 
 private val ArticleIllustrations = listOf(

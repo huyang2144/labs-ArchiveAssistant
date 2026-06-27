@@ -335,7 +335,7 @@ private fun DetailCourtHeader(
                     text = topic.title,
                     style = MaterialTheme.typography.displaySmall,
                     color = DetailPalaceGold,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Normal,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -408,7 +408,7 @@ private fun DetailFilterSeal(
             text = label,
             style = MaterialTheme.typography.titleSmall,
             color = content,
-            fontWeight = FontWeight.Black,
+            fontWeight = FontWeight.Normal,
             maxLines = 1,
         )
     }
@@ -503,7 +503,7 @@ private fun MemorialArticleCard(
                     },
                     style = MaterialTheme.typography.titleLarge,
                     color = DetailInk,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Normal,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -585,7 +585,7 @@ private fun EmptyMemorialShelf(modifier: Modifier = Modifier) {
                 text = "此档暂无奏折",
                 style = MaterialTheme.typography.headlineSmall,
                 color = DetailInk,
-                fontWeight = FontWeight.Black,
+                fontWeight = FontWeight.Normal,
             )
             Text(
                 text = "可由中书录入，门下筛选后归入尚书档案。",
