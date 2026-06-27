@@ -116,7 +116,6 @@ fun HomePane(
     smartSummarizationMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    val totalItems = itemsByTopic.values.sumOf { it.size }
     val pendingCount = pendingCount(recentTopics, itemsByTopic)
     val folders = dashboardFolders(recentTopics, itemsByTopic)
 
@@ -149,7 +148,6 @@ fun HomePane(
                 if (expanded) {
                     ExpandedMosaic(
                         appTitle = title,
-                        totalItems = totalItems,
                         pendingCount = pendingCount,
                         folders = folders,
                         parserInput = parserInput,
@@ -170,7 +168,6 @@ fun HomePane(
                 } else {
                     CompactMosaic(
                         appTitle = title,
-                        totalItems = totalItems,
                         pendingCount = pendingCount,
                         folders = folders,
                         parserInput = parserInput,
@@ -210,7 +207,6 @@ private fun HomeContentColumn(
 @Composable
 private fun ColumnScope.ExpandedMosaic(
     appTitle: String,
-    totalItems: Int,
     pendingCount: Int,
     folders: List<DashboardFolder>,
     parserInput: String,
@@ -230,9 +226,6 @@ private fun ColumnScope.ExpandedMosaic(
 ) {
     HomeHeaderRow(
         appTitle = appTitle,
-        totalItems = totalItems,
-        pendingCount = pendingCount,
-        isSmartSummarizing = isSmartSummarizing,
         onOpenSettings = onOpenSettings,
         modifier = Modifier
             .fillMaxWidth()
@@ -308,7 +301,6 @@ private fun ColumnScope.ExpandedMosaic(
 @Composable
 private fun ColumnScope.CompactMosaic(
     appTitle: String,
-    totalItems: Int,
     pendingCount: Int,
     folders: List<DashboardFolder>,
     parserInput: String,
@@ -328,9 +320,6 @@ private fun ColumnScope.CompactMosaic(
 ) {
     HomeHeaderRow(
         appTitle = appTitle,
-        totalItems = totalItems,
-        pendingCount = pendingCount,
-        isSmartSummarizing = isSmartSummarizing,
         onOpenSettings = onOpenSettings,
         modifier = Modifier
             .fillMaxWidth()
@@ -403,28 +392,14 @@ private fun ColumnScope.CompactMosaic(
 @Composable
 private fun HomeHeaderRow(
     appTitle: String,
-    totalItems: Int,
-    pendingCount: Int,
-    isSmartSummarizing: Boolean,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    TitleCell(
+        appTitle = appTitle,
+        onOpenSettings = onOpenSettings,
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        TitleCell(
-            appTitle = appTitle,
-            onOpenSettings = onOpenSettings,
-            modifier = Modifier.weight(1.5f),
-        )
-        StatusCell(
-            totalItems = totalItems,
-            pendingCount = pendingCount,
-            isSmartSummarizing = isSmartSummarizing,
-            modifier = Modifier.weight(1f),
-        )
-    }
+    )
 }
 
 @Composable
@@ -438,15 +413,6 @@ private fun TitleCell(
         color = PalaceGreen,
         contentColor = PalaceGold,
     ) {
-        DecorativePlaceholder(
-            imageRes = R.drawable.imperial_ornament_gate_guard,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 18.dp)
-                .size(104.dp),
-            alpha = 0.18f,
-            tint = PalaceGold,
-        )
         IconButton(
             onClick = onOpenSettings,
             modifier = Modifier
@@ -463,7 +429,7 @@ private fun TitleCell(
         Column(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(horizontal = 18.dp),
+                .padding(start = 22.dp, end = 72.dp),
         ) {
             Text(
                 text = appTitle,
@@ -480,76 +446,6 @@ private fun TitleCell(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-    }
-}
-
-@Composable
-private fun StatusCell(
-    totalItems: Int,
-    pendingCount: Int,
-    isSmartSummarizing: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    MosaicCell(
-        modifier = modifier.fillMaxSize(),
-        color = PalaceGreen,
-        contentColor = PalaceGold,
-    ) {
-        DecorativePlaceholder(
-            imageRes = R.drawable.imperial_ornament_bronze,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(14.dp)
-                .size(86.dp),
-            alpha = 0.22f,
-            tint = PalaceGold,
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(horizontal = 16.dp),
-        ) {
-            Text(
-                text = "朝堂视角",
-                style = MaterialTheme.typography.headlineSmall,
-                color = PalaceGold,
-                fontWeight = FontWeight.Normal,
-                maxLines = 1,
-            )
-            Text(
-                text = "中书录入 · 门下递奏 · 尚书归档",
-                style = MaterialTheme.typography.bodyMedium,
-                color = ImperialUmber.copy(alpha = 0.72f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Row(
-                modifier = Modifier.padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
-                InlineMetric("宣入", "12")
-                InlineMetric("藏档", totalItems.toString())
-                InlineMetric("待审", pendingCount.toString())
-                InlineMetric("状态", if (isSmartSummarizing) "拟录" else "递奏")
-            }
-        }
-    }
-}
-
-@Composable
-private fun InlineMetric(label: String, value: String) {
-    Column {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge,
-            color = PalaceGold,
-            fontWeight = FontWeight.Normal,
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = ImperialUmber.copy(alpha = 0.62f),
-        )
     }
 }
 
