@@ -3,10 +3,12 @@ package com.lyihub.archiveassistant.ui.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,26 +19,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +63,7 @@ import com.lyihub.archiveassistant.domain.LocalModelState
 import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.ui.components.ArchiveDialog
 import com.lyihub.archiveassistant.ui.components.ArchiveDialogAction
+import com.lyihub.archiveassistant.ui.components.HeaderIconButton
 import com.lyihub.archiveassistant.ui.components.PaneContainer
 import com.lyihub.archiveassistant.ui.components.PaneContentPadding
 import com.lyihub.archiveassistant.ui.components.PaneDivider
@@ -82,6 +77,7 @@ import kotlinx.coroutines.launch
 private val SettingsPanelShape = RoundedCornerShape(8.dp)
 private val SettingsFieldShape = RoundedCornerShape(5.dp)
 private val SettingsButtonShape = RoundedCornerShape(5.dp)
+private val SettingsInfoShape = RoundedCornerShape(6.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,16 +125,12 @@ fun SettingsPane(
     PaneHeader(
       title = "设置",
       navigationIcon = {
-        IconButton(
+        HeaderIconButton(
+          icon = Icons.AutoMirrored.Filled.ArrowBack,
+          contentDescription = "返回",
+          testTag = "settings-back-button",
           onClick = onBack,
-          modifier = Modifier.padding(end = 12.dp),
-        ) {
-          Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "返回",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
+        )
       },
     )
     PaneDivider()
@@ -341,12 +333,7 @@ fun SettingsPane(
                 modifier = Modifier.fillMaxWidth().testTag("local-model-panel"),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
               ) {
-                Card(
-                  modifier = Modifier.fillMaxWidth(),
-                  shape = SettingsPanelShape,
-                  colors =
-                    CardDefaults.cardColors(containerColor = ImperialIvory.copy(alpha = 0.84f)),
-                ) {
+                SettingsInfoPanel(modifier = Modifier.fillMaxWidth()) {
                   Column(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -387,22 +374,16 @@ fun SettingsPane(
                       modifier = Modifier.fillMaxWidth(),
                       horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                      Button(
+                      SettingsActionButton(
+                        label = "下载模型",
                         onClick = onDownloadModel,
-                        shape = SettingsButtonShape,
-                        colors = settingsButtonColors(),
                         modifier = Modifier.weight(1f).testTag("download-model-button"),
-                      ) {
-                        Text("下载模型")
-                      }
-                      Button(
+                      )
+                      SettingsActionButton(
+                        label = "选择文件",
                         onClick = onChooseModelFile,
-                        shape = SettingsButtonShape,
-                        colors = settingsButtonColors(),
                         modifier = Modifier.weight(1f).testTag("choose-model-file-button"),
-                      ) {
-                        Text("选择文件")
-                      }
+                      )
                     }
                   }
                   LocalModelStatus.DOWNLOADING -> {
@@ -423,36 +404,28 @@ fun SettingsPane(
                         modifier = Modifier.fillMaxWidth().testTag("model-busy-text"),
                       )
                       if (!isImportingModel) {
-                        TextButton(
+                        SettingsTextAction(
+                          label = "取消",
                           onClick = onCancelDownload,
-                          colors = ButtonDefaults.textButtonColors(contentColor = ImperialCinnabar),
                           modifier = Modifier.fillMaxWidth().testTag("cancel-download-button"),
-                        ) {
-                          Text("取消")
-                        }
+                        )
                       }
                     }
                   }
                   LocalModelStatus.DOWNLOADED -> {
-                    Button(
+                    SettingsActionButton(
+                      label = "开启模型",
                       onClick = onStartModel,
-                      shape = SettingsButtonShape,
-                      colors = settingsButtonColors(),
                       modifier = Modifier.fillMaxWidth().testTag("start-model-button"),
-                    ) {
-                      Text("开启模型")
-                    }
+                    )
                   }
                   LocalModelStatus.READY,
                   LocalModelStatus.INFERENCING -> {
-                    Button(
+                    SettingsActionButton(
+                      label = "停止模型",
                       onClick = onStopModel,
-                      shape = SettingsButtonShape,
-                      colors = settingsButtonColors(),
                       modifier = Modifier.fillMaxWidth().testTag("stop-model-button"),
-                    ) {
-                      Text("停止模型")
-                    }
+                    )
                   }
                   else -> {}
                 }
@@ -524,22 +497,20 @@ fun SettingsPane(
                   localModelState.status == LocalModelStatus.READY ||
                     localModelState.status == LocalModelStatus.INFERENCING
                 ) {
-                  Button(
+                  SettingsActionButton(
+                    label = "测试推理速度",
                     onClick = onRunBenchmark,
                     enabled = !isBenchmarkRunning,
-                    shape = SettingsButtonShape,
-                    colors = settingsButtonColors(),
                     modifier = Modifier.fillMaxWidth().testTag("benchmark-button"),
                   ) {
                     if (isBenchmarkRunning) {
                       CircularProgressIndicator(
                         modifier =
                           Modifier.padding(end = 8.dp).testTag("benchmark-loading-indicator"),
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = Color.White,
                         strokeWidth = 2.dp,
                       )
                     }
-                    Text("测试推理速度")
                   }
 
                   benchmarkResult?.let { result ->
@@ -580,7 +551,8 @@ fun SettingsPane(
             }
 
             if (aiSettings.engineType != AiEngineType.LOCAL_MODEL) {
-              Button(
+              SettingsActionButton(
+                label = "测试 API 延迟",
                 onClick = {
                   latencyResultText = null
                   isTestingLatency = true
@@ -595,18 +567,15 @@ fun SettingsPane(
                   }
                 },
                 enabled = !isTestingLatency,
-                shape = SettingsButtonShape,
-                colors = settingsButtonColors(),
                 modifier = Modifier.fillMaxWidth().testTag("test-api-latency-button"),
               ) {
                 if (isTestingLatency) {
                   CircularProgressIndicator(
                     modifier = Modifier.padding(end = 8.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = Color.White,
                     strokeWidth = 2.dp,
                   )
                 }
-                Text("测试 API 延迟")
               }
 
               latencyResultText?.let { text ->
@@ -682,6 +651,78 @@ fun SettingsPane(
 }
 
 @Composable
+private fun SettingsInfoPanel(
+  modifier: Modifier = Modifier,
+  content: @Composable () -> Unit,
+) {
+  Box(
+    modifier =
+      modifier
+        .clip(SettingsInfoShape)
+        .background(Color.White.copy(alpha = 0.42f), SettingsInfoShape)
+        .border(0.8.dp, Color.Black.copy(alpha = 0.12f), SettingsInfoShape)
+  ) {
+    content()
+  }
+}
+
+@Composable
+private fun SettingsActionButton(
+  label: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  enabled: Boolean = true,
+  contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 11.dp),
+  leadingContent: @Composable () -> Unit = {},
+) {
+  val backgroundColor = if (enabled) ImperialCinnabar else ImperialParchment
+  val contentColor = if (enabled) Color.White else Color.Black.copy(alpha = 0.38f)
+  Row(
+    modifier =
+      modifier
+        .shadow(if (enabled) 3.dp else 0.dp, SettingsButtonShape, clip = false)
+        .clip(SettingsButtonShape)
+        .background(backgroundColor, SettingsButtonShape)
+        .border(0.7.dp, Color.Black.copy(alpha = if (enabled) 0.1f else 0.04f), SettingsButtonShape)
+        .clickable(enabled = enabled, onClick = onClick)
+        .padding(contentPadding),
+    horizontalArrangement = Arrangement.Center,
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    leadingContent()
+    Text(
+      text = label,
+      style = MaterialTheme.typography.labelLarge.copy(fontFamily = ImperialDisplayFont),
+      color = contentColor,
+    )
+  }
+}
+
+@Composable
+private fun SettingsTextAction(
+  label: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Box(
+    modifier =
+      modifier
+        .clip(SettingsButtonShape)
+        .background(Color.White.copy(alpha = 0.28f), SettingsButtonShape)
+        .border(0.7.dp, ImperialCinnabar.copy(alpha = 0.28f), SettingsButtonShape)
+        .clickable(onClick = onClick)
+        .padding(horizontal = 16.dp, vertical = 10.dp),
+    contentAlignment = Alignment.Center,
+  ) {
+    Text(
+      text = label,
+      style = MaterialTheme.typography.labelLarge.copy(fontFamily = ImperialDisplayFont),
+      color = ImperialCinnabar,
+    )
+  }
+}
+
+@Composable
 private fun SettingsPaperSection(content: @Composable ColumnScope.() -> Unit) {
   Box(
     modifier =
@@ -731,13 +772,4 @@ private fun settingsTextFieldColors() =
     focusedLabelColor = ImperialCinnabar,
     unfocusedLabelColor = Color.Black.copy(alpha = 0.56f),
     cursorColor = ImperialCinnabar,
-  )
-
-@Composable
-private fun settingsButtonColors(): ButtonColors =
-  ButtonDefaults.buttonColors(
-    containerColor = ImperialCinnabar,
-    contentColor = Color.White,
-    disabledContainerColor = ImperialParchment,
-    disabledContentColor = Color.Black.copy(alpha = 0.38f),
   )
