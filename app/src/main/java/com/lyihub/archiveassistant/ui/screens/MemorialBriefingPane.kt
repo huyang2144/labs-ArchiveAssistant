@@ -161,7 +161,7 @@ private fun MemorialCoverWheel(
       while (true) {
         delay(MemorialWheelAutoAdvanceMillis)
         val snappedRotation = (wheelRotation / stepDegrees).roundToInt() * stepDegrees
-        val nextRotation = snappedRotation - stepDegrees
+        val nextRotation = normalizeWheelRotation(snappedRotation - stepDegrees, stepDegrees)
         wheelRotation = nextRotation
         onActiveIndexChanged(activeWheelIndex(nextRotation, stepDegrees))
       }
@@ -192,13 +192,15 @@ private fun MemorialCoverWheel(
           },
           onDragEnd = {
             val snappedRotation = (wheelRotation / stepDegrees).roundToInt() * stepDegrees
-            wheelRotation = snappedRotation
-            onActiveIndexChanged(activeWheelIndex(snappedRotation, stepDegrees))
+            val normalizedRotation = normalizeWheelRotation(snappedRotation, stepDegrees)
+            wheelRotation = normalizedRotation
+            onActiveIndexChanged(activeWheelIndex(normalizedRotation, stepDegrees))
           },
           onDragCancel = {
             val snappedRotation = (wheelRotation / stepDegrees).roundToInt() * stepDegrees
-            wheelRotation = snappedRotation
-            onActiveIndexChanged(activeWheelIndex(snappedRotation, stepDegrees))
+            val normalizedRotation = normalizeWheelRotation(snappedRotation, stepDegrees)
+            wheelRotation = normalizedRotation
+            onActiveIndexChanged(activeWheelIndex(normalizedRotation, stepDegrees))
           },
         )
       }
@@ -212,7 +214,8 @@ private fun MemorialCoverWheel(
     val pendingStampLines = pendingStampLines(pendingCount)
     val pendingStampHeight = 14.dp + 31.dp * pendingStampLines.size
     val pendingStampWidth = 48.dp
-    val startDegrees = MemorialActiveSlotDegrees + animatedWheelRotation
+    val renderedWheelRotation = normalizedDegrees(animatedWheelRotation)
+    val startDegrees = MemorialActiveSlotDegrees + renderedWheelRotation
 
     MemorialWheelInnerDisc(
       centerX = wheelCenterX,
@@ -424,6 +427,13 @@ private fun activeWheelIndex(rotation: Float, stepDegrees: Float): Int {
   return floorMod((-rotation / stepDegrees).roundToInt(), MemorialWheelItemCount)
 }
 
+private fun normalizedDegrees(degrees: Float): Float = ((degrees % 360f) + 360f) % 360f
+
+private fun normalizeWheelRotation(rotation: Float, stepDegrees: Float): Float {
+  val index = activeWheelIndex(rotation, stepDegrees)
+  return -index * stepDegrees
+}
+
 private fun lerpFloat(start: Float, stop: Float, fraction: Float): Float {
   return start + (stop - start) * fraction.coerceIn(0f, 1f)
 }
@@ -461,7 +471,7 @@ private fun MemorialWheelInnerDisc(
         verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
         Image(
-          painter = painterResource(id = R.drawable.imperial_ornament_jia_ma),
+          painter = painterResource(id = R.drawable.memorial_touch_book),
           contentDescription = null,
           modifier = Modifier.size(iconSize),
           alpha = 0.46f,

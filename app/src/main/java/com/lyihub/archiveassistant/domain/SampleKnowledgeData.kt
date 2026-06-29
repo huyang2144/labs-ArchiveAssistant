@@ -2,7 +2,7 @@ package com.lyihub.archiveassistant.domain
 
 object SampleKnowledgeData {
   const val DefaultTopicId = "topic-ai-architecture"
-  const val DemoDataVersion = 6
+  const val DemoDataVersion = 7
 
   val topics: List<Topic> =
     listOf(
@@ -816,7 +816,7 @@ object SampleKnowledgeData {
       title = title,
       iconName = if (index % 2 == 0) "folder-spark" else "folder-bookmark",
       iconColor = color,
-      updatedAtEpochMillis = BASE_TIME - index * DAY_MILLIS,
+      updatedAtEpochMillis = BASE_TIME - topicTimeOffset(index),
     )
 
   private fun demoItem(
@@ -898,4 +898,15 @@ object SampleKnowledgeData {
 
   private const val BASE_TIME = 1_782_700_177_000L
   private const val DAY_MILLIS = 86_400_000L
+  private const val HOUR_MILLIS = 3_600_000L
+
+  private fun topicTimeOffset(index: Int): Long =
+    when (index) {
+      0 -> 0L
+      1 -> 1L * DAY_MILLIS + 4L * HOUR_MILLIS
+      2 -> 2L * DAY_MILLIS + 8L * HOUR_MILLIS
+      3 -> 3L * DAY_MILLIS + 12L * HOUR_MILLIS
+      4 -> 5L * DAY_MILLIS + 2L * HOUR_MILLIS
+      else -> 7L * DAY_MILLIS
+    }
 }

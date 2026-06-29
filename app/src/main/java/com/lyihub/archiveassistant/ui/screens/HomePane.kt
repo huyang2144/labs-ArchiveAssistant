@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -264,6 +265,8 @@ private fun HomeFeatureCell(
   ornamentSize: Dp = if (large) 132.dp else 68.dp,
   ornamentOffsetX: Dp = if (large) 22.dp else 10.dp,
   ornamentOffsetY: Dp = 0.dp,
+  ornamentAlignment: Alignment = Alignment.CenterEnd,
+  ornamentTint: Color? = null,
 ) {
   CutoutCell(
     modifier =
@@ -274,10 +277,11 @@ private fun HomeFeatureCell(
     HomeOrnament(
       imageRes = ornamentRes,
       modifier =
-        Modifier.align(Alignment.CenterEnd)
+        Modifier.align(ornamentAlignment)
           .offset(x = ornamentOffsetX, y = ornamentOffsetY)
           .size(ornamentSize),
       alpha = if (large) 0.5f else 0.58f,
+      tint = ornamentTint,
     )
     if (label.isNotBlank()) {
       Text(
@@ -355,8 +359,9 @@ private fun PalaceDashboardBlock(
             onClick = {},
             testTag = "workflow-zhongshu-cell",
             enabled = false,
-            ornamentSize = 86.dp,
-            ornamentOffsetX = 20.dp,
+            ornamentSize = 96.dp,
+            ornamentOffsetX = 18.dp,
+            ornamentTint = Color.White,
           )
           HomeFeatureCell(
             title = "门下递奏",
@@ -386,13 +391,16 @@ private fun PalaceDashboardBlock(
           title = "宣拾遗",
           subtitle = "读取剪切板",
           contentColor = Color.White,
-          ornamentRes = R.drawable.home_ornament_clipboard_sanxingdui,
+          ornamentRes = R.drawable.home_ornament_sanxingdui,
           tileVisual = ClipboardTileVisual,
           modifier = Modifier.weight(1f).height(searchRowHeight),
           onClick = onOpenClipboard,
           testTag = "clipboard-button",
-          ornamentSize = 112.dp,
-          ornamentOffsetX = 24.dp,
+          ornamentSize = 82.dp,
+          ornamentOffsetX = (-2).dp,
+          ornamentOffsetY = 2.dp,
+          ornamentAlignment = Alignment.TopEnd,
+          ornamentTint = Color.White,
         )
         SearchCell(
           searchQuery = searchQuery,
@@ -535,12 +543,13 @@ private fun MinistryStampStack(
       modifier
         .shadow(14.dp, RoundedCornerShape(8.dp), clip = false)
         .testTag("ministry-stamp-stack"),
-    verticalArrangement = Arrangement.spacedBy(7.dp),
+    verticalArrangement = Arrangement.spacedBy(0.dp),
   ) {
     MinistryFoldSurface(
       modifier = Modifier.fillMaxWidth(),
       shape = ArchiveCutCornerShape,
       foldIntensity = 0.22f,
+      showEndFold = true,
     ) {
       Row(
         modifier =
@@ -694,7 +703,7 @@ private fun MinistryFoldCard(
   compact: Boolean,
 ) {
   val enabled = folder.topic != null
-  val imageSize = if (compact) 34.dp else 64.dp
+  val imageSize = if (compact) 52.dp else 78.dp
   val titleStyle =
     if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleLarge
   val summaryStyle =
@@ -708,18 +717,16 @@ private fun MinistryFoldCard(
         .testTag("topic-card-${folder.id}"),
     shape = RoundedCornerShape(7.dp),
     foldIntensity = if (compact) 0.16f else 0.2f,
+    showEndFold = true,
   ) {
     Box(modifier = Modifier.fillMaxSize()) {
       if (!isManagingMinistries) {
         Image(
           painter = painterResource(id = visual.imageRes),
           contentDescription = null,
-          modifier =
-            Modifier.align(Alignment.TopEnd)
-              .offset(x = 10.dp, y = (-8).dp)
-              .size(imageSize + if (compact) 12.dp else 16.dp),
+          modifier = Modifier.align(Alignment.TopEnd).offset(x = 0.dp, y = 0.dp).size(imageSize),
           contentScale = ContentScale.Fit,
-          alpha = 0.78f,
+          alpha = 0.82f,
         )
         Text(
           text =
@@ -810,9 +817,16 @@ private fun MinistryFoldSurface(
   modifier: Modifier = Modifier,
   shape: androidx.compose.ui.graphics.Shape,
   foldIntensity: Float,
+  showEndFold: Boolean = false,
   content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) {
-  Box(modifier = modifier.clip(shape).background(Color.White, shape)) {
+  Box(
+    modifier =
+      modifier
+        .shadow(if (showEndFold) 5.dp else 0.dp, shape, clip = false)
+        .clip(shape)
+        .background(Color.White, shape)
+  ) {
     Image(
       painter = painterResource(id = R.drawable.home_search_tile),
       contentDescription = null,
@@ -833,13 +847,28 @@ private fun MinistryFoldSurface(
             )
           )
     )
-    Box(
-      modifier =
-        Modifier.align(Alignment.CenterEnd)
-          .fillMaxHeight()
-          .width(9.dp)
-          .background(Color.Black.copy(alpha = 0.05f * foldIntensity * 5f))
-    )
+    if (showEndFold) {
+      Box(
+        modifier =
+          Modifier.align(Alignment.CenterEnd)
+            .fillMaxHeight()
+            .width(12.dp)
+            .background(
+              Brush.horizontalGradient(
+                0f to Color.Transparent,
+                0.34f to Color.White.copy(alpha = 0.22f),
+                1f to Color.Black.copy(alpha = 0.08f * foldIntensity * 5.5f),
+              )
+            )
+      )
+      Box(
+        modifier =
+          Modifier.align(Alignment.CenterStart)
+            .fillMaxHeight()
+            .width(1.dp)
+            .background(Color.Black.copy(alpha = 0.04f))
+      )
+    }
     content()
   }
 }
@@ -849,6 +878,7 @@ private fun HomeOrnament(
   @DrawableRes imageRes: Int,
   modifier: Modifier = Modifier,
   alpha: Float = 0.5f,
+  tint: Color? = null,
 ) {
   Image(
     painter = painterResource(id = imageRes),
@@ -856,6 +886,7 @@ private fun HomeOrnament(
     modifier = modifier,
     contentScale = ContentScale.Fit,
     alpha = alpha,
+    colorFilter = tint?.let(ColorFilter::tint),
   )
 }
 
