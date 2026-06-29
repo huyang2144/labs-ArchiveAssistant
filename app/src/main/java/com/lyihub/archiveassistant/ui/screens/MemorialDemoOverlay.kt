@@ -271,8 +271,7 @@ internal fun buildPendingDossier(item: KnowledgeItem): PendingMemorialDossier {
 }
 
 private fun stableArticleCoverOffset(item: KnowledgeItem): Int {
-  val seed = "${item.id}|${item.title}".hashCode()
-  return positiveMod(seed, MemorialCoverResources.size)
+  return MemorialCoverSequence.articleCoverOffset(item, MemorialCoverResources.size)
 }
 
 private fun sourceLine(item: KnowledgeItem): String {

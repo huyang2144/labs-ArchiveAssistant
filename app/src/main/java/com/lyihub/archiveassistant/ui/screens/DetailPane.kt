@@ -41,7 +41,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,6 +76,7 @@ import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.domain.Topic
 import com.lyihub.archiveassistant.state.AddItemDialogPrefill
 import com.lyihub.archiveassistant.ui.components.ActionButton
+import com.lyihub.archiveassistant.ui.components.ArchiveChip
 import com.lyihub.archiveassistant.ui.components.ArchiveDialog
 import com.lyihub.archiveassistant.ui.components.ArchiveDialogAction
 import com.lyihub.archiveassistant.ui.components.PaneContainer
@@ -516,36 +516,20 @@ private fun ArticleTagChip(
   fixedColor: Color,
   onClick: (() -> Unit)?,
 ) {
-  val tagShape = DetailTagChipShape
-  val backgroundColor =
-    if (selected) fixedColor.copy(alpha = 0.13f) else Color(0xFFE3E0D8).copy(alpha = 0.5f)
-  val borderColor =
-    if (selected) fixedColor.copy(alpha = 0.72f) else Color.Black.copy(alpha = 0.16f)
-  val textColor = if (selected) Color.Black.copy(alpha = 0.82f) else Color.Black.copy(alpha = 0.48f)
-  Box(
-    modifier =
-      modifier
-        .height(20.dp)
-        .clip(tagShape)
-        .background(backgroundColor, tagShape)
-        .border(0.8.dp, borderColor, tagShape)
-        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-    contentAlignment = Alignment.Center,
-  ) {
-    Text(
-      text = text,
-      style =
-        MaterialTheme.typography.labelSmall.copy(
-          fontFamily = ImperialDisplayFont,
-          fontSize = 10.sp,
-          lineHeight = 10.sp,
-        ),
-      color = textColor,
-      maxLines = 1,
-      overflow = TextOverflow.Ellipsis,
-      modifier = Modifier.padding(horizontal = 7.dp),
-    )
-  }
+  ArchiveChip(
+    label = text,
+    selected = selected,
+    accentColor = fixedColor,
+    modifier = modifier,
+    shape = DetailTagChipShape,
+    textStyle =
+      MaterialTheme.typography.labelSmall.copy(
+        fontFamily = ImperialDisplayFont,
+        fontSize = 10.sp,
+        lineHeight = 10.sp,
+      ),
+    onClick = onClick,
+  )
 }
 
 @Composable
@@ -630,29 +614,22 @@ private fun FilterChip(
   onClick: () -> Unit,
 ) {
   val accent = tagAccentColor(label)
-  val bgColor = if (selected) accent.copy(alpha = 0.13f) else Color(0xFFE3E0D8).copy(alpha = 0.46f)
-  val borderColor =
-    if (selected) accent.copy(alpha = 0.68f)
-    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)
-  val textColor =
-    if (selected) {
-      MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
-    } else {
-      MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f)
-    }
-  Surface(
-    color = bgColor,
-    border = androidx.compose.foundation.BorderStroke(0.8.dp, borderColor),
+  ArchiveChip(
+    label = label,
+    selected = selected,
+    enabled = enabled,
+    accentColor = accent,
     shape = MaterialTheme.shapes.small,
-    modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
-  ) {
-    Text(
-      text = label,
-      style = MaterialTheme.typography.labelMedium,
-      color = textColor,
-      modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-    )
-  }
+    height = 32.dp,
+    textStyle = MaterialTheme.typography.labelMedium,
+    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+    selectedBorderAlpha = 0.68f,
+    unselectedBackgroundColor = Color(0xFFE3E0D8).copy(alpha = 0.46f),
+    unselectedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f),
+    selectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
+    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+    onClick = onClick,
+  )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -576,6 +576,73 @@ private fun List<KnowledgeItem>.bestPendingMemorialItem(): KnowledgeItem? {
 private val AsciiLetterRegex = Regex("[A-Za-z]")
 
 @Composable
+private fun ArchiveHomeContent(
+  stateStore: ArchiveAssistantStateStore,
+  state: ArchiveAssistantState,
+  modifier: Modifier = Modifier,
+) {
+  HomePane(
+    title = "聚合拾遗",
+    parserValidationMessage = state.parserValidationMessage,
+    recentTopics = if (state.homeSearchQuery.isBlank()) state.topics else state.searchedTopics,
+    itemsByTopic = state.itemsByTopic,
+    searchQuery = state.homeSearchQuery,
+    smartSummarizationMessage = state.smartSummarizationMessage,
+    onTopicSelected = stateStore::openTopic,
+    onOpenSettings = stateStore::openSettings,
+    onCreateTopic = stateStore::openCreateTopicDialog,
+    onRenameTopic = stateStore::openRenameTopicDialog,
+    onDeleteTopic = stateStore::openDeleteConfirmDialog,
+    onSearchQueryChanged = stateStore::updateHomeSearchQuery,
+    onOpenClipboard = stateStore::openLatestClipboardDialog,
+    onOpenMemorialDemo = stateStore::openMemorialWheel,
+    modifier = modifier,
+  )
+}
+
+@Composable
+private fun ArchiveMemorialContent(
+  state: ArchiveAssistantState,
+  onOpenMemorialDemo: () -> Unit,
+  modifier: Modifier = Modifier,
+  pendingCount: Int = pendingMemorialCount(state),
+  showBackButton: Boolean = false,
+  onBack: (() -> Unit)? = null,
+) {
+  MemorialBriefingPane(
+    pendingCount = pendingCount,
+    briefingItems = state.items,
+    onOpenMemorialDemo = onOpenMemorialDemo,
+    modifier = modifier,
+    onBack = onBack,
+    showBackButton = showBackButton,
+  )
+}
+
+@Composable
+private fun SelectedTopicDetailContent(
+  stateStore: ArchiveAssistantStateStore,
+  state: ArchiveAssistantState,
+  onBack: () -> Unit,
+  showBackButton: Boolean,
+  fallback: @Composable () -> Unit,
+) {
+  val topic = state.selectedTopic
+  if (topic != null) {
+    DetailPane(
+      topic = topic,
+      items = state.visibleSelectedTopicItems,
+      searchQuery = state.homeSearchQuery,
+      onBack = onBack,
+      onItemClick = stateStore::openArticleReader,
+      showBackButton = showBackButton,
+    )
+  } else {
+    fallback()
+  }
+}
+
+@Composable
 private fun SinglePaneLayout(
   stateStore: ArchiveAssistantStateStore,
   onAiSettingsChanged: (AiEngineSettings) -> Unit,
@@ -588,62 +655,31 @@ private fun SinglePaneLayout(
 
   when (state.selectedPane) {
     AppPane.TOPICS ->
-      HomePane(
-        title = "聚合拾遗",
-        parserValidationMessage = state.parserValidationMessage,
-        recentTopics = if (state.homeSearchQuery.isBlank()) state.topics else state.searchedTopics,
-        itemsByTopic = state.itemsByTopic,
-        searchQuery = state.homeSearchQuery,
-        smartSummarizationMessage = state.smartSummarizationMessage,
-        onTopicSelected = stateStore::openTopic,
-        onOpenSettings = stateStore::openSettings,
-        onCreateTopic = stateStore::openCreateTopicDialog,
-        onRenameTopic = stateStore::openRenameTopicDialog,
-        onDeleteTopic = stateStore::openDeleteConfirmDialog,
-        onSearchQueryChanged = stateStore::updateHomeSearchQuery,
-        onOpenClipboard = stateStore::openLatestClipboardDialog,
-        onOpenMemorialDemo = stateStore::openMemorialWheel,
+      ArchiveHomeContent(
+        stateStore = stateStore,
+        state = state,
       )
 
     AppPane.MEMORIAL ->
-      MemorialBriefingPane(
-        pendingCount = pendingMemorialCount(state),
-        briefingItems = state.items,
+      ArchiveMemorialContent(
+        state = state,
         onOpenMemorialDemo = onOpenMemorialDemo,
         onBack = stateStore::closePanes,
         showBackButton = true,
       )
 
-    AppPane.DETAIL -> {
-      val topic = state.selectedTopic
-      if (topic != null) {
-        DetailPane(
-          topic = topic,
-          items = state.visibleSelectedTopicItems,
-          searchQuery = state.homeSearchQuery,
-          onBack = stateStore::closePanes,
-          onItemClick = stateStore::openArticleReader,
-        )
-      } else {
-        HomePane(
-          title = "聚合拾遗",
-          parserValidationMessage = state.parserValidationMessage,
-          recentTopics =
-            if (state.homeSearchQuery.isBlank()) state.topics else state.searchedTopics,
-          itemsByTopic = state.itemsByTopic,
-          searchQuery = state.homeSearchQuery,
-          smartSummarizationMessage = state.smartSummarizationMessage,
-          onTopicSelected = stateStore::openTopic,
-          onOpenSettings = stateStore::openSettings,
-          onCreateTopic = stateStore::openCreateTopicDialog,
-          onRenameTopic = stateStore::openRenameTopicDialog,
-          onDeleteTopic = stateStore::openDeleteConfirmDialog,
-          onSearchQueryChanged = stateStore::updateHomeSearchQuery,
-          onOpenClipboard = stateStore::openLatestClipboardDialog,
-          onOpenMemorialDemo = stateStore::openMemorialWheel,
+    AppPane.DETAIL ->
+      SelectedTopicDetailContent(
+        stateStore = stateStore,
+        state = state,
+        onBack = stateStore::closePanes,
+        showBackButton = true,
+      ) {
+        ArchiveHomeContent(
+          stateStore = stateStore,
+          state = state,
         )
       }
-    }
 
     AppPane.SETTINGS ->
       SettingsPane(
@@ -664,36 +700,18 @@ private fun SinglePaneLayout(
         isBenchmarkRunning = state.isBenchmarkRunning,
       )
 
-    AppPane.ARTICLE_READER -> {
-      val topic = state.selectedTopic
-      if (topic != null) {
-        DetailPane(
-          topic = topic,
-          items = state.visibleSelectedTopicItems,
-          searchQuery = state.homeSearchQuery,
-          onBack = stateStore::closeArticleReader,
-          onItemClick = stateStore::openArticleReader,
-        )
-      } else {
-        HomePane(
-          title = "聚合拾遗",
-          parserValidationMessage = state.parserValidationMessage,
-          recentTopics =
-            if (state.homeSearchQuery.isBlank()) state.topics else state.searchedTopics,
-          itemsByTopic = state.itemsByTopic,
-          searchQuery = state.homeSearchQuery,
-          smartSummarizationMessage = state.smartSummarizationMessage,
-          onTopicSelected = stateStore::openTopic,
-          onOpenSettings = stateStore::openSettings,
-          onCreateTopic = stateStore::openCreateTopicDialog,
-          onRenameTopic = stateStore::openRenameTopicDialog,
-          onDeleteTopic = stateStore::openDeleteConfirmDialog,
-          onSearchQueryChanged = stateStore::updateHomeSearchQuery,
-          onOpenClipboard = stateStore::openLatestClipboardDialog,
-          onOpenMemorialDemo = stateStore::openMemorialWheel,
+    AppPane.ARTICLE_READER ->
+      SelectedTopicDetailContent(
+        stateStore = stateStore,
+        state = state,
+        onBack = stateStore::closeArticleReader,
+        showBackButton = true,
+      ) {
+        ArchiveHomeContent(
+          stateStore = stateStore,
+          state = state,
         )
       }
-    }
   }
 }
 
@@ -709,62 +727,42 @@ private fun WideWorkspaceLayout(
   val state = stateStore.state
   Box(modifier = Modifier.fillMaxSize()) {
     Row(modifier = Modifier.fillMaxSize()) {
-      HomePane(
-        title = "聚合拾遗",
-        parserValidationMessage = state.parserValidationMessage,
-        recentTopics = if (state.homeSearchQuery.isBlank()) state.topics else state.searchedTopics,
-        itemsByTopic = state.itemsByTopic,
-        searchQuery = state.homeSearchQuery,
-        smartSummarizationMessage = state.smartSummarizationMessage,
-        onTopicSelected = stateStore::openTopic,
-        onOpenSettings = stateStore::openSettings,
-        onCreateTopic = stateStore::openCreateTopicDialog,
-        onRenameTopic = stateStore::openRenameTopicDialog,
-        onDeleteTopic = stateStore::openDeleteConfirmDialog,
-        onSearchQueryChanged = stateStore::updateHomeSearchQuery,
-        onOpenClipboard = stateStore::openLatestClipboardDialog,
-        onOpenMemorialDemo = stateStore::openMemorialWheel,
+      ArchiveHomeContent(
+        stateStore = stateStore,
+        state = state,
         modifier = Modifier.weight(1f),
       )
 
       Box(modifier = Modifier.weight(1f)) {
         when (state.selectedPane) {
           AppPane.TOPICS ->
-            MemorialBriefingPane(
-              pendingCount = pendingMemorialCount(state),
-              briefingItems = state.items,
+            ArchiveMemorialContent(
+              state = state,
               onOpenMemorialDemo = onOpenMemorialDemo,
             )
 
           AppPane.MEMORIAL ->
-            MemorialBriefingPane(
-              pendingCount = pendingMemorialCount(state),
-              briefingItems = state.items,
+            ArchiveMemorialContent(
+              state = state,
               onOpenMemorialDemo = onOpenMemorialDemo,
               onBack = stateStore::closePanes,
               showBackButton = false,
             )
 
           AppPane.DETAIL,
-          AppPane.ARTICLE_READER -> {
-            val topic = state.selectedTopic
-            if (topic != null) {
-              DetailPane(
-                topic = topic,
-                items = state.visibleSelectedTopicItems,
-                searchQuery = state.homeSearchQuery,
-                onBack = stateStore::closePanes,
-                onItemClick = stateStore::openArticleReader,
-                showBackButton = false,
-              )
-            } else {
-              MemorialBriefingPane(
+          AppPane.ARTICLE_READER ->
+            SelectedTopicDetailContent(
+              stateStore = stateStore,
+              state = state,
+              onBack = stateStore::closePanes,
+              showBackButton = false,
+            ) {
+              ArchiveMemorialContent(
+                state = state,
                 pendingCount = 0,
-                briefingItems = state.items,
                 onOpenMemorialDemo = onOpenMemorialDemo,
               )
             }
-          }
 
           AppPane.SETTINGS ->
             SettingsPane(

@@ -115,7 +115,8 @@ internal class MemorialAssets(context: Context) {
     if (coverSequenceIndex <= 0) return fixedFirstCoverTexture
     if (generatedCoverTextures.isEmpty()) return fallbackCoverTexture
     val textureIndex = coverSequenceIndex - 1
-    return generatedCoverTextures[positiveModulo(textureIndex, generatedCoverTextures.size)]
+    return generatedCoverTextures[
+      MemorialCoverSequence.texturePoolIndex(textureIndex, generatedCoverTextures.size)]
       ?: fallbackCoverTexture
   }
 
@@ -166,9 +167,4 @@ internal class MemorialAssets(context: Context) {
     }
     return Bitmap.createBitmap(output, width, height, Bitmap.Config.ARGB_8888)
   }
-}
-
-private fun positiveModulo(value: Int, modulo: Int): Int {
-  val remainder = value % modulo
-  return if (remainder >= 0) remainder else remainder + modulo
 }
