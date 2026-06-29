@@ -161,7 +161,6 @@ fun DetailPane(
 ) {
     val horizontalPadding = 24.dp
     val topPadding = 56.dp
-    val contentTopPadding = 128.dp
     val availableTags = remember(items) {
         items.flatMap(::articleTags).distinct()
     }
@@ -178,7 +177,7 @@ fun DetailPane(
         modifier = modifier
             .testTag("detail-pane"),
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .weight(1f),
@@ -188,17 +187,18 @@ fun DetailPane(
                 itemCount = items.size,
                 onBack = onBack,
                 modifier = Modifier
-                    .align(Alignment.TopStart)
                     .padding(start = horizontalPadding, top = topPadding, end = horizontalPadding)
                     .fillMaxWidth(),
                 showBackButton = showBackButton,
             )
 
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
                 contentPadding = PaddingValues(
                     start = horizontalPadding,
-                    top = contentTopPadding,
+                    top = 24.dp,
                     end = horizontalPadding,
                     bottom = 28.dp,
                 ),
@@ -386,6 +386,11 @@ private fun MemorialArticleCard(
     val imageShape = RoundedCornerShape(DetailCardCorner)
     val tags = articleTags(item)
     val imageResId = localArticleImageResId(item.imageResName)
+    val imageLayout = if (imageResId != null) {
+        localArticleImageLayout(imageResId)
+    } else {
+        null
+    }
     Box(
         modifier = modifier
             .shadow(8.dp, cardShape, clip = false)
@@ -405,12 +410,7 @@ private fun MemorialArticleCard(
                 .matchParentSize()
                 .background(Color.White.copy(alpha = 0.2f)),
         )
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(7.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             if (imageResId != null) {
                 Box(
                     modifier = Modifier
@@ -422,14 +422,21 @@ private fun MemorialArticleCard(
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(articleImageAspectRatio(item))
+                            .aspectRatio(imageLayout?.aspectRatio ?: articleImageAspectRatio(item))
                             .clip(imageShape),
-                        contentScale = ContentScale.Crop,
+                        contentScale = if (imageLayout?.cropToMaxHeight == true) ContentScale.Crop else ContentScale.Fit,
                     )
                 }
             }
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = 7.dp,
+                        top = if (imageResId != null) 6.dp else 8.dp,
+                        end = 7.dp,
+                        bottom = 8.dp,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(7.dp),
             ) {
                 Text(
@@ -468,6 +475,32 @@ private fun localArticleImageResId(imageResName: String?): Int? {
             ?.takeIf { it != 0 }
     }
 }
+
+@Composable
+private fun localArticleImageLayout(resId: Int): ArticleImageLayout {
+    val context = LocalContext.current
+    return remember(resId, context) {
+        val options = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        context.resources.openRawResource(resId).use { input ->
+            BitmapFactory.decodeStream(input, null, options)
+        }
+        val width = options.outWidth.takeIf { it > 0 } ?: return@remember ArticleImageLayout(1f, false)
+        val height = options.outHeight.takeIf { it > 0 } ?: return@remember ArticleImageLayout(1f, false)
+        val originalRatio = width.toFloat() / height.toFloat()
+        val minRatio = 9f / 16f
+        ArticleImageLayout(
+            aspectRatio = originalRatio.coerceAtLeast(minRatio),
+            cropToMaxHeight = originalRatio < minRatio,
+        )
+    }
+}
+
+private data class ArticleImageLayout(
+    val aspectRatio: Float,
+    val cropToMaxHeight: Boolean,
+)
 
 private fun articleTags(item: KnowledgeItem): List<String> {
     item.fullText

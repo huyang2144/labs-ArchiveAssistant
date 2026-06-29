@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
@@ -30,8 +31,11 @@ internal fun PaneHeroHeader(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (showBackButton && onBack != null) {
-            Row(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (showBackButton && onBack != null) {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -40,15 +44,16 @@ internal fun PaneHeroHeader(
                     )
                 }
             }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.displayMedium,
+                color = Color.Black,
+                fontWeight = FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
         }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.displayMedium,
-            color = Color.Black,
-            fontWeight = FontWeight.Normal,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
         Text(
             text = description,
             style = MaterialTheme.typography.titleSmall,

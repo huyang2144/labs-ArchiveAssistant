@@ -35,6 +35,7 @@ import com.lyihub.archiveassistant.domain.AppPane
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
 import com.lyihub.archiveassistant.service.LocalInferenceConnection
+import com.lyihub.archiveassistant.state.ArchiveAssistantState
 import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
 import com.lyihub.archiveassistant.ui.layout.LayoutMode
 import com.lyihub.archiveassistant.ui.layout.rememberWindowLayoutInfo
@@ -502,6 +503,11 @@ private fun String?.hasExtension(vararg extensions: String): Boolean {
     return extensions.any { it == extension }
 }
 
+private fun pendingMemorialCount(state: ArchiveAssistantState): Int =
+    state.topics.take(3).sumOf { topic ->
+        ((state.itemsByTopic[topic.id]?.size ?: 0) + topic.title.length) % 3
+    }
+
 @Composable
 private fun SinglePaneLayout(
     stateStore: ArchiveAssistantStateStore,
@@ -528,7 +534,14 @@ private fun SinglePaneLayout(
             onDeleteTopic = stateStore::openDeleteConfirmDialog,
             onSearchQueryChanged = stateStore::updateHomeSearchQuery,
             onOpenClipboard = stateStore::openLatestClipboardDialog,
+            onOpenMemorialDemo = stateStore::openMemorialWheel,
+        )
+
+        AppPane.MEMORIAL -> MemorialBriefingPane(
+            pendingCount = pendingMemorialCount(state),
             onOpenMemorialDemo = onOpenMemorialDemo,
+            onBack = stateStore::closePanes,
+            showBackButton = true,
         )
 
         AppPane.DETAIL -> {
@@ -544,7 +557,7 @@ private fun SinglePaneLayout(
             } else {
                 HomePane(
                     title = "聚合拾遗",
-                        parserValidationMessage = state.parserValidationMessage,
+                    parserValidationMessage = state.parserValidationMessage,
                     recentTopics = if (state.homeSearchQuery.isBlank()) state.topics else state.searchedTopics,
                     itemsByTopic = state.itemsByTopic,
                     searchQuery = state.homeSearchQuery,
@@ -556,7 +569,7 @@ private fun SinglePaneLayout(
                     onDeleteTopic = stateStore::openDeleteConfirmDialog,
                     onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                     onOpenClipboard = stateStore::openLatestClipboardDialog,
-                    onOpenMemorialDemo = onOpenMemorialDemo,
+                    onOpenMemorialDemo = stateStore::openMemorialWheel,
                 )
             }
         }
@@ -611,7 +624,7 @@ private fun SinglePaneLayout(
             } else {
                 HomePane(
                     title = "聚合拾遗",
-                        parserValidationMessage = state.parserValidationMessage,
+                    parserValidationMessage = state.parserValidationMessage,
                     recentTopics = if (state.homeSearchQuery.isBlank()) state.topics else state.searchedTopics,
                     itemsByTopic = state.itemsByTopic,
                     searchQuery = state.homeSearchQuery,
@@ -623,7 +636,7 @@ private fun SinglePaneLayout(
                     onDeleteTopic = stateStore::openDeleteConfirmDialog,
                     onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                     onOpenClipboard = stateStore::openLatestClipboardDialog,
-                    onOpenMemorialDemo = onOpenMemorialDemo,
+                    onOpenMemorialDemo = stateStore::openMemorialWheel,
                 )
             }
         }
@@ -659,17 +672,22 @@ private fun WideWorkspaceLayout(
                 onDeleteTopic = stateStore::openDeleteConfirmDialog,
                 onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                 onOpenClipboard = stateStore::openLatestClipboardDialog,
-                onOpenMemorialDemo = stateStore::closePanes,
+                onOpenMemorialDemo = stateStore::openMemorialWheel,
                 modifier = Modifier.weight(1f),
             )
 
             Box(modifier = Modifier.weight(1f)) {
                 when (state.selectedPane) {
                     AppPane.TOPICS -> MemorialBriefingPane(
-                        pendingCount = state.topics.take(3).sumOf { topic ->
-                            ((state.itemsByTopic[topic.id]?.size ?: 0) + topic.title.length) % 3
-                        },
+                        pendingCount = pendingMemorialCount(state),
                         onOpenMemorialDemo = onOpenMemorialDemo,
+                    )
+
+                    AppPane.MEMORIAL -> MemorialBriefingPane(
+                        pendingCount = pendingMemorialCount(state),
+                        onOpenMemorialDemo = onOpenMemorialDemo,
+                        onBack = stateStore::closePanes,
+                        showBackButton = false,
                     )
 
                     AppPane.DETAIL,
@@ -711,9 +729,7 @@ private fun WideWorkspaceLayout(
                     )
 
                     AppPane.MANAGE -> MemorialBriefingPane(
-                        pendingCount = state.topics.take(3).sumOf { topic ->
-                            ((state.itemsByTopic[topic.id]?.size ?: 0) + topic.title.length) % 3
-                        },
+                        pendingCount = pendingMemorialCount(state),
                         onOpenMemorialDemo = onOpenMemorialDemo,
                     )
                 }

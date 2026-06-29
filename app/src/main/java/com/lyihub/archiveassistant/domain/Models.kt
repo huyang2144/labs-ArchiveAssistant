@@ -115,6 +115,7 @@ data class AiEnginePreset(
 
 enum class AppPane {
     TOPICS,
+    MEMORIAL,
     DETAIL,
     SETTINGS,
     CARD_DETAIL,

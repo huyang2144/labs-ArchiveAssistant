@@ -287,6 +287,14 @@ class ArchiveAssistantStateStore(
         )
     }
 
+    fun openMemorialWheel() {
+        state = state.copy(
+            selectedPane = AppPane.MEMORIAL,
+            selectedTopicId = null,
+            modalItem = null,
+        )
+    }
+
     fun openSettings() {
         state = state.copy(selectedPane = AppPane.SETTINGS, modalItem = null)
     }

@@ -103,6 +103,8 @@ fun MemorialBriefingPane(
     pendingCount: Int,
     onOpenMemorialDemo: () -> Unit,
     modifier: Modifier = Modifier,
+    showBackButton: Boolean = false,
+    onBack: (() -> Unit)? = null,
 ) {
     var activeBriefIndex by remember { mutableIntStateOf(0) }
     Box(
@@ -119,6 +121,8 @@ fun MemorialBriefingPane(
         )
         BriefingCopy(
             activeIndex = activeBriefIndex,
+            showBackButton = showBackButton,
+            onBack = onBack,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(start = 24.dp, top = 56.dp, end = 24.dp)
@@ -636,6 +640,8 @@ private fun MemorialCoverLabel(
 @Composable
 private fun BriefingCopy(
     activeIndex: Int,
+    showBackButton: Boolean,
+    onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val sample = BriefingSamples[floorMod(activeIndex, BriefingSamples.size)]
@@ -646,6 +652,8 @@ private fun BriefingCopy(
         PaneHeroHeader(
             title = "奏章",
             description = "轻触此页展开奏章堆叠，准、驳、留中皆可一笔批下。",
+            showBackButton = showBackButton,
+            onBack = onBack,
             modifier = Modifier.fillMaxWidth(),
         )
         MemorialBriefCard(
