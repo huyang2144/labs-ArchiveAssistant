@@ -34,6 +34,17 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
+private enum class MemorialToolbarButton {
+  CoverSummary,
+  CoverOpen,
+  CoverReject,
+  CoverApprove,
+  CoverKeep,
+  Like,
+  Dislike,
+  Collapse,
+}
+
 internal class MemorialFoldView(context: Context) : View(context) {
   private val displayDensity = resources.displayMetrics.density
   private val scaledDensity = displayDensity * resources.configuration.fontScale
@@ -120,6 +131,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private var currentStamp: MemorialStamp? = null
   private var stampCompletion = StampCompletion.AutoDismiss
   private var toolbarPressedStamp: MemorialStamp? = null
+  private var pressedToolbarButton: MemorialToolbarButton? = null
+  private var ignoreLockedTouchSequence = false
   private var hideReadingControlsDuringClose = false
   private var onAutoDismiss: (() -> Unit)? = null
   private var onCloseAnimationFinished: (() -> Unit)? = null
@@ -346,10 +359,31 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     if (stage != MemorialStage.Expanded) return true
 
+    if (ignoreLockedTouchSequence) {
+      if (
+        event.actionMasked == MotionEvent.ACTION_UP ||
+          event.actionMasked == MotionEvent.ACTION_CANCEL
+      ) {
+        ignoreLockedTouchSequence = false
+      }
+      resetReaderTouchState()
+      return true
+    }
+
+    if (isReaderInteractionLocked()) {
+      if (
+        event.actionMasked == MotionEvent.ACTION_DOWN ||
+          event.actionMasked == MotionEvent.ACTION_POINTER_DOWN
+      ) {
+        ignoreLockedTouchSequence = true
+      }
+      resetReaderTouchState()
+      return true
+    }
+
     when (event.actionMasked) {
       MotionEvent.ACTION_DOWN -> {
         parent?.requestDisallowInterceptTouchEvent(true)
-        scroller.abortAnimation()
         velocityTracker = VelocityTracker.obtain().also { it.addMovement(event) }
         lastTouchX = event.x
         downTouchX = event.x
@@ -361,7 +395,15 @@ internal class MemorialFoldView(context: Context) : View(context) {
           } else {
             null
           }
+        pressedToolbarButton =
+          when (toolbarPressedStamp) {
+            MemorialStamp.Like -> MemorialToolbarButton.Like
+            MemorialStamp.Dislike -> MemorialToolbarButton.Dislike
+            MemorialStamp.Collapse -> MemorialToolbarButton.Collapse
+            else -> null
+          }
         isDragging = false
+        invalidate()
         return true
       }
 
@@ -370,6 +412,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
         val dx = lastTouchX - event.x
         if (!isDragging && abs(dx) > touchSlop) {
           isDragging = true
+          clearPressedToolbarButton()
         }
         if (isDragging) {
           scrollByAmount(dx)
@@ -429,6 +472,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
         velocityTracker = null
         isDragging = false
         toolbarPressedStamp = null
+        clearPressedToolbarButton()
         parent?.requestDisallowInterceptTouchEvent(false)
         return true
       }
@@ -464,8 +508,29 @@ internal class MemorialFoldView(context: Context) : View(context) {
     return true
   }
 
+  private fun isReaderInteractionLocked(): Boolean {
+    return transitionAnimator != null ||
+      scrollReturnAnimator != null ||
+      stampAnimator != null ||
+      coverSwipeAnimator != null ||
+      currentStamp != null ||
+      coverFinalStamp != null ||
+      pendingSpreadSnap ||
+      !scroller.isFinished
+  }
+
+  private fun resetReaderTouchState() {
+    velocityTracker?.recycle()
+    velocityTracker = null
+    isDragging = false
+    toolbarPressedStamp = null
+    clearPressedToolbarButton()
+    parent?.requestDisallowInterceptTouchEvent(false)
+  }
+
   private fun handleCoverTouch(event: MotionEvent): Boolean {
     if (currentStamp != null || coverFinalStamp != null || coverSwipeAnimator != null) {
+      clearPressedToolbarButton()
       return true
     }
     when (event.actionMasked) {
@@ -498,6 +563,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
         }
         summaryWasShown = false
         coverSummaryPressed = coverActionSummaryRect.contains(event.x, event.y)
+        pressedToolbarButton = coverPressedToolbarButton(event.x, event.y)
         if (coverSummaryPressed) {
           postDelayed(showSummaryRunnable, 120L)
         } else if (coverTouchStartedOnCover && toolbarPressedStamp == null) {
@@ -528,6 +594,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
             abs(coverGestureLastAvgY - coverGestureStartAvgY) > touchSlop
         ) {
           isDragging = true
+          clearPressedToolbarButton()
           if (!summaryPinnedByTap) {
             hideSummary(animated = true)
           }
@@ -617,6 +684,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
         coverSummaryPressed = false
         coverTouchStartedOnCover = false
         toolbarPressedStamp = null
+        clearPressedToolbarButton()
         parent?.requestDisallowInterceptTouchEvent(false)
         return true
       }
@@ -632,6 +700,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
         activePointerCount = 0
         isDragging = false
         toolbarPressedStamp = null
+        clearPressedToolbarButton()
         coverFinalStamp = null
         coverFinalStampFromButton = false
         coverFinalStampStrength = 0f
@@ -914,11 +983,36 @@ internal class MemorialFoldView(context: Context) : View(context) {
       maxWidth = topButtonWidth,
     )
 
-    drawToolbarButton(canvas, coverActionSummaryRect, "长按简览")
-    drawToolbarButton(canvas, coverActionOpenRect, "点击展开")
-    drawToolbarButton(canvas, coverActionLeftRect, "左滑驳回")
-    drawToolbarButton(canvas, coverActionRightRect, "右滑准奏")
-    drawToolbarButton(canvas, coverActionKeepRect, "上滑留中")
+    drawToolbarButton(
+      canvas,
+      coverActionSummaryRect,
+      "长按简览",
+      pressedToolbarButton == MemorialToolbarButton.CoverSummary,
+    )
+    drawToolbarButton(
+      canvas,
+      coverActionOpenRect,
+      "点击展开",
+      pressedToolbarButton == MemorialToolbarButton.CoverOpen,
+    )
+    drawToolbarButton(
+      canvas,
+      coverActionLeftRect,
+      "左滑驳回",
+      pressedToolbarButton == MemorialToolbarButton.CoverReject,
+    )
+    drawToolbarButton(
+      canvas,
+      coverActionRightRect,
+      "右滑准奏",
+      pressedToolbarButton == MemorialToolbarButton.CoverApprove,
+    )
+    drawToolbarButton(
+      canvas,
+      coverActionKeepRect,
+      "上滑留中",
+      pressedToolbarButton == MemorialToolbarButton.CoverKeep,
+    )
 
     val counter =
       "第${(coverStackIndex + 1).toChineseCount()}封，共${expectedDossierCount().toChineseCount()}封"
@@ -938,6 +1032,24 @@ internal class MemorialFoldView(context: Context) : View(context) {
       coverActionKeepRect.contains(x, y) -> MemorialStamp.Keep
       coverActionOpenRect.contains(x, y) -> MemorialStamp.Collapse
       else -> null
+    }
+  }
+
+  private fun coverPressedToolbarButton(x: Float, y: Float): MemorialToolbarButton? {
+    return when {
+      coverActionSummaryRect.contains(x, y) -> MemorialToolbarButton.CoverSummary
+      coverActionOpenRect.contains(x, y) -> MemorialToolbarButton.CoverOpen
+      coverActionLeftRect.contains(x, y) -> MemorialToolbarButton.CoverReject
+      coverActionRightRect.contains(x, y) -> MemorialToolbarButton.CoverApprove
+      coverActionKeepRect.contains(x, y) -> MemorialToolbarButton.CoverKeep
+      else -> null
+    }
+  }
+
+  private fun clearPressedToolbarButton() {
+    if (pressedToolbarButton != null) {
+      pressedToolbarButton = null
+      invalidate()
     }
   }
 
@@ -1287,8 +1399,18 @@ internal class MemorialFoldView(context: Context) : View(context) {
       desiredGap = gap,
       maxWidth = foldRight - foldLeft - dp(72f),
     )
-    drawToolbarButton(canvas, toolbarButtonRect1, "朕喜欢")
-    drawToolbarButton(canvas, toolbarButtonRect2, "朕不喜欢")
+    drawToolbarButton(
+      canvas,
+      toolbarButtonRect1,
+      "朕喜欢",
+      pressedToolbarButton == MemorialToolbarButton.Like,
+    )
+    drawToolbarButton(
+      canvas,
+      toolbarButtonRect2,
+      "朕不喜欢",
+      pressedToolbarButton == MemorialToolbarButton.Dislike,
+    )
   }
 
   private fun drawCollapseButton(canvas: Canvas) {
@@ -1301,10 +1423,19 @@ internal class MemorialFoldView(context: Context) : View(context) {
       height = buttonHeight,
       maxWidth = foldRight - foldLeft - dp(72f),
     )
-    drawToolbarButton(canvas, collapseButtonRect, "收起")
+    drawToolbarButton(
+      canvas,
+      collapseButtonRect,
+      "收起",
+      pressedToolbarButton == MemorialToolbarButton.Collapse,
+    )
   }
 
-  private fun drawToolbarButton(canvas: Canvas, rect: RectF, label: String) {
+  private fun drawToolbarButton(canvas: Canvas, rect: RectF, label: String, pressed: Boolean) {
+    canvas.save()
+    if (pressed) {
+      canvas.scale(0.96f, 0.96f, rect.centerX(), rect.centerY())
+    }
     assets.buttonTexture?.let { texture ->
       canvas.drawBitmap(texture, null, rect, paints.buttonImage)
     }
@@ -1312,6 +1443,13 @@ internal class MemorialFoldView(context: Context) : View(context) {
         canvas.drawRoundRect(rect, dp(10f), dp(10f), paints.toolbar)
         canvas.drawRoundRect(rect, dp(10f), dp(10f), paints.toolbarStroke)
       }
+    if (pressed) {
+      paints.surface.shader = null
+      paints.surface.style = Paint.Style.FILL
+      paints.surface.color = AndroidColor.argb(42, 42, 20, 8)
+      canvas.drawRoundRect(rect, dp(10f), dp(10f), paints.surface)
+      paints.surface.color = AndroidColor.TRANSPARENT
+    }
     drawCenteredText(
       canvas,
       label,
@@ -1319,6 +1457,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       rect.centerY() + textCenterOffset(paints.toolbarText),
       paints.toolbarText,
     )
+    canvas.restore()
   }
 
   private fun toolbarHitTest(x: Float, y: Float): MemorialStamp? {

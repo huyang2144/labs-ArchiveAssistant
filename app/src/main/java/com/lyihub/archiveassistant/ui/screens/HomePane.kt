@@ -435,7 +435,7 @@ private fun SearchCell(
     tileVisual = SearchTileVisual,
   ) {
     HomeOrnament(
-      imageRes = R.drawable.home_ornament_library_11138,
+      imageRes = R.drawable.home_ornament_library_11092,
       modifier = Modifier.align(Alignment.CenterEnd).offset(x = 18.dp).size(112.dp),
       alpha = 0.66f,
     )
