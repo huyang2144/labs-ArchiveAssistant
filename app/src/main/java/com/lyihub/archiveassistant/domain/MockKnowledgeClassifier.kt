@@ -1,83 +1,114 @@
 package com.lyihub.archiveassistant.domain
 
-class MockKnowledgeClassifier(
-    private val defaultTopics: List<Topic> = SampleKnowledgeData.topics,
-) {
-    fun classify(rawInput: String, topics: List<Topic> = defaultTopics): ClassificationResult {
-        val normalizedInput = rawInput.trim()
-        if (normalizedInput.isEmpty()) {
-            return ClassificationResult.BlankInput()
-        }
-
-        val contentType = detectContentType(normalizedInput)
-        val documentFormat = if (contentType == ContentType.DOCUMENT) {
-            detectDocumentFormat(normalizedInput)
-        } else null
-        val topic = selectTopic(normalizedInput, topics)
-
-        return ClassificationResult.Classified(
-            ClassificationPayload(
-                topicId = topic.id,
-                contentType = contentType,
-                title = titleFor(normalizedInput),
-                summary = normalizedInput.take(96),
-                rawInput = normalizedInput,
-                documentFormat = documentFormat,
-            ),
-        )
+class MockKnowledgeClassifier(private val defaultTopics: List<Topic> = SampleKnowledgeData.topics) {
+  fun classify(rawInput: String, topics: List<Topic> = defaultTopics): ClassificationResult {
+    val normalizedInput = rawInput.trim()
+    if (normalizedInput.isEmpty()) {
+      return ClassificationResult.BlankInput()
     }
 
-    private fun detectDocumentFormat(input: String): DocumentFormat {
-        val lowerInput = input.lowercase()
-        return when {
-            ".pdf" in lowerInput || lowerInput.contains("pdf") -> DocumentFormat.PDF
-            ".md" in lowerInput || lowerInput.contains("markdown") -> DocumentFormat.MARKDOWN
-            ".docx" in lowerInput || lowerInput.contains("word") -> DocumentFormat.DOCX
-            ".txt" in lowerInput || lowerInput.contains("纯文本") -> DocumentFormat.TXT
-            else -> DocumentFormat.UNKNOWN
-        }
-    }
+    val contentType = detectContentType(normalizedInput)
+    val documentFormat =
+      if (contentType == ContentType.DOCUMENT) {
+        detectDocumentFormat(normalizedInput)
+      } else null
+    val topic = selectTopic(normalizedInput, topics)
 
-    private fun detectContentType(input: String): ContentType {
-        val lowerInput = input.lowercase()
-        return when {
-            imageTerms.any { it in lowerInput } -> ContentType.IMAGE_SCREENSHOT
-            documentTerms.any { it in lowerInput } -> ContentType.DOCUMENT
-            urlTerms.any { it in lowerInput } || urlRegex.containsMatchIn(input) -> ContentType.WEB_ARTICLE
-            else -> ContentType.WEB_ARTICLE
-        }
-    }
+    return ClassificationResult.Classified(
+      ClassificationPayload(
+        topicId = topic.id,
+        contentType = contentType,
+        title = titleFor(normalizedInput),
+        summary = normalizedInput.take(96),
+        rawInput = normalizedInput,
+        documentFormat = documentFormat,
+      )
+    )
+  }
 
-    private fun selectTopic(input: String, topics: List<Topic>): Topic {
-        val lowerInput = input.lowercase()
-        val preferredTitle = when {
-            listOf("ui", "ux", "design", "interface", "界面", "交互", "设计").any { it in lowerInput } -> "UX/UI 灵感板"
-            listOf("anthropology", "fieldwork", "人类学", "田野", "仪式").any { it in lowerInput } -> "阅读剪报：人类学"
-            listOf("travel", "trip", "旅行", "目的地").any { it in lowerInput } -> "冷门旅行地参考"
-            else -> "大模型架构研究"
-        }
-        return topics.firstOrNull { it.title == preferredTitle }
-            ?: topics.firstOrNull()
-            ?: Topic(
-                id = SampleKnowledgeData.DefaultTopicId,
-                title = "大模型架构研究",
-                iconName = "folder-spark",
-                iconColor = "#b85c38",
-                updatedAtEpochMillis = 1_715_000_000_000,
-            )
+  private fun detectDocumentFormat(input: String): DocumentFormat {
+    val lowerInput = input.lowercase()
+    return when {
+      ".pdf" in lowerInput || lowerInput.contains("pdf") -> DocumentFormat.PDF
+      ".md" in lowerInput || lowerInput.contains("markdown") -> DocumentFormat.MARKDOWN
+      ".docx" in lowerInput || lowerInput.contains("word") -> DocumentFormat.DOCX
+      ".txt" in lowerInput || lowerInput.contains("纯文本") -> DocumentFormat.TXT
+      else -> DocumentFormat.UNKNOWN
     }
+  }
 
-    private fun titleFor(input: String): String = input
-        .lineSequence()
-        .firstOrNull { it.isNotBlank() }
-        ?.trim()
-        ?.take(28)
-        ?: "提取内容"
-
-    private companion object {
-        val urlRegex = Regex("https?://\\S+|www\\.\\S+")
-        val urlTerms = listOf("url", "http", "article", "web", "link", "网页", "文章", "链接")
-        val imageTerms = listOf("image", "screenshot", "screen shot", "photo", "png", "jpg", "jpeg", "图片", "图像", "截图", "截屏")
-        val documentTerms = listOf("pdf", "document", "doc", "docx", "paper", "report", "txt", ".txt", ".md", ".docx", ".doc", "markdown", "word", "纯文本", "文档", "论文", "报告")
+  private fun detectContentType(input: String): ContentType {
+    val lowerInput = input.lowercase()
+    return when {
+      imageTerms.any { it in lowerInput } -> ContentType.IMAGE_SCREENSHOT
+      documentTerms.any { it in lowerInput } -> ContentType.DOCUMENT
+      urlTerms.any { it in lowerInput } || urlRegex.containsMatchIn(input) ->
+        ContentType.WEB_ARTICLE
+      else -> ContentType.WEB_ARTICLE
     }
+  }
+
+  private fun selectTopic(input: String, topics: List<Topic>): Topic {
+    val lowerInput = input.lowercase()
+    val preferredTitle =
+      when {
+        listOf("ui", "ux", "design", "interface", "界面", "交互", "设计").any { it in lowerInput } ->
+          "UX/UI 灵感板"
+        listOf("anthropology", "fieldwork", "人类学", "田野", "仪式").any { it in lowerInput } ->
+          "阅读剪报：人类学"
+        listOf("travel", "trip", "旅行", "目的地").any { it in lowerInput } -> "冷门旅行地参考"
+        else -> "大模型架构研究"
+      }
+    return topics.firstOrNull { it.title == preferredTitle }
+      ?: topics.firstOrNull()
+      ?: Topic(
+        id = SampleKnowledgeData.DefaultTopicId,
+        title = "大模型架构研究",
+        iconName = "folder-spark",
+        iconColor = "#b85c38",
+        updatedAtEpochMillis = 1_715_000_000_000,
+      )
+  }
+
+  private fun titleFor(input: String): String =
+    input.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(28) ?: "提取内容"
+
+  private companion object {
+    val urlRegex = Regex("https?://\\S+|www\\.\\S+")
+    val urlTerms = listOf("url", "http", "article", "web", "link", "网页", "文章", "链接")
+    val imageTerms =
+      listOf(
+        "image",
+        "screenshot",
+        "screen shot",
+        "photo",
+        "png",
+        "jpg",
+        "jpeg",
+        "图片",
+        "图像",
+        "截图",
+        "截屏",
+      )
+    val documentTerms =
+      listOf(
+        "pdf",
+        "document",
+        "doc",
+        "docx",
+        "paper",
+        "report",
+        "txt",
+        ".txt",
+        ".md",
+        ".docx",
+        ".doc",
+        "markdown",
+        "word",
+        "纯文本",
+        "文档",
+        "论文",
+        "报告",
+      )
+  }
 }

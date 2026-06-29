@@ -14,47 +14,44 @@ import com.lyihub.archiveassistant.ui.theme.ImperialIvory
 
 @Composable
 fun MemorialDemoOverlay(onDismiss: () -> Unit) {
-    val foldView = remember { mutableStateOf<MemorialFoldView?>(null) }
-    val dismissStarted = remember { mutableStateOf(false) }
-    val completeDismiss = {
-        onDismiss()
+  val foldView = remember { mutableStateOf<MemorialFoldView?>(null) }
+  val dismissStarted = remember { mutableStateOf(false) }
+  val completeDismiss = {
+    onDismiss()
+  }
+  val autoDismiss = {
+    if (!dismissStarted.value) {
+      dismissStarted.value = true
+      onDismiss()
     }
-    val autoDismiss = {
-        if (!dismissStarted.value) {
-            dismissStarted.value = true
-            onDismiss()
-        }
+  }
+  val requestDismiss = {
+    if (!dismissStarted.value) {
+      dismissStarted.value = true
+      foldView.value?.closeWithAnimation(completeDismiss) ?: completeDismiss()
     }
-    val requestDismiss = {
-        if (!dismissStarted.value) {
-            dismissStarted.value = true
-            foldView.value?.closeWithAnimation(completeDismiss) ?: completeDismiss()
-        }
-    }
+  }
 
-    BackHandler(onBack = requestDismiss)
-    MemorialImmersiveSystemUi(onDispose = { foldView.value = null })
+  BackHandler(onBack = requestDismiss)
+  MemorialImmersiveSystemUi(onDispose = { foldView.value = null })
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(ImperialIvory)
-            .testTag("memorial-demo-overlay"),
-    ) {
-        AndroidView(
-            factory = { context ->
-                MemorialFoldView(context).apply {
-                    foldView.value = this
-                    setAutoDismissHandler(autoDismiss)
-                    setPages(memorialPages)
-                }
-            },
-            update = { view ->
-                foldView.value = view
-                view.setAutoDismissHandler(autoDismiss)
-                view.setPages(memorialPages)
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
+  Box(
+    modifier = Modifier.fillMaxSize().background(ImperialIvory).testTag("memorial-demo-overlay")
+  ) {
+    AndroidView(
+      factory = { context ->
+        MemorialFoldView(context).apply {
+          foldView.value = this
+          setAutoDismissHandler(autoDismiss)
+          setPages(memorialPages)
+        }
+      },
+      update = { view ->
+        foldView.value = view
+        view.setAutoDismissHandler(autoDismiss)
+        view.setPages(memorialPages)
+      },
+      modifier = Modifier.fillMaxSize(),
+    )
+  }
 }

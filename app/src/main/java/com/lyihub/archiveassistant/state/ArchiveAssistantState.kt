@@ -11,102 +11,101 @@ import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.domain.Topic
 
 enum class TopicNameDialogMode {
-    CREATE,
-    RENAME,
+  CREATE,
+  RENAME,
 }
 
 data class AddItemDialogPrefill(
-    val title: String = "",
-    val contentType: ContentType = ContentType.WEB_ARTICLE,
-    val sourceUrl: String? = null,
-    val documentFormat: DocumentFormat? = null,
-    val fileName: String? = null,
-    val lockContentType: Boolean = false,
-    val availableContentTypes: List<ContentType>? = null,
-    val textContent: String? = null,
+  val title: String = "",
+  val contentType: ContentType = ContentType.WEB_ARTICLE,
+  val sourceUrl: String? = null,
+  val documentFormat: DocumentFormat? = null,
+  val fileName: String? = null,
+  val lockContentType: Boolean = false,
+  val availableContentTypes: List<ContentType>? = null,
+  val textContent: String? = null,
 )
 
 data class ClipboardSnapshot(
-    val content: String? = null,
-    val imageUri: String? = null,
-    val sourceUri: String? = null,
-    val sourceContentType: ContentType? = null,
-    val sourceDocumentFormat: DocumentFormat? = null,
-    val sourceFileName: String? = null,
-    val sourceLabel: String? = null,
+  val content: String? = null,
+  val imageUri: String? = null,
+  val sourceUri: String? = null,
+  val sourceContentType: ContentType? = null,
+  val sourceDocumentFormat: DocumentFormat? = null,
+  val sourceFileName: String? = null,
+  val sourceLabel: String? = null,
 )
 
 data class ArchiveAssistantState(
-    val selectedPane: AppPane = AppPane.TOPICS,
-    val selectedTopicId: String? = null,
-    val topics: List<Topic> = emptyList(),
-    val items: List<KnowledgeItem> = emptyList(),
-    val parserInput: String = "",
-    val parserValidationMessage: String? = null,
-    val isSmartSummarizing: Boolean = false,
-    val smartSummarizationMessage: String? = null,
-    val topicValidationMessage: String? = null,
-    val modalItem: KnowledgeItem? = null,
-    val aiSettings: AiEngineSettings = AiEngineSettings(),
-    val localModelState: LocalModelState = LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED),
-    val benchmarkResult: BenchResult? = null,
-    val isBenchmarkRunning: Boolean = false,
-    val topicNameDialogMode: TopicNameDialogMode? = null,
-    val topicNameDialogTopicId: String? = null,
-    val deleteConfirmTopicId: String? = null,
-    val addItemDialogVisible: Boolean = false,
-    val addItemDialogValidationMessage: String? = null,
-    val addItemDialogPrefill: AddItemDialogPrefill? = null,
-    val editingItem: KnowledgeItem? = null,
-    val editItemDialogValidationMessage: String? = null,
-    val deleteConfirmItemId: String? = null,
-    val homeSearchQuery: String = "",
-    val clipboardContent: String? = null,
-    val showClipboardDialog: Boolean = false,
-    val clipboardImageUri: String? = null,
-    val clipboardSourceUri: String? = null,
-    val clipboardSourceContentType: ContentType? = null,
-    val clipboardSourceDocumentFormat: DocumentFormat? = null,
-    val clipboardSourceFileName: String? = null,
-    val clipboardSourceLabel: String? = null,
-    val latestClipboardSnapshot: ClipboardSnapshot? = null,
-    val ignoredClipboardSnapshot: ClipboardSnapshot? = null,
+  val selectedPane: AppPane = AppPane.TOPICS,
+  val selectedTopicId: String? = null,
+  val topics: List<Topic> = emptyList(),
+  val items: List<KnowledgeItem> = emptyList(),
+  val parserInput: String = "",
+  val parserValidationMessage: String? = null,
+  val isSmartSummarizing: Boolean = false,
+  val smartSummarizationMessage: String? = null,
+  val topicValidationMessage: String? = null,
+  val modalItem: KnowledgeItem? = null,
+  val aiSettings: AiEngineSettings = AiEngineSettings(),
+  val localModelState: LocalModelState = LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED),
+  val benchmarkResult: BenchResult? = null,
+  val isBenchmarkRunning: Boolean = false,
+  val topicNameDialogMode: TopicNameDialogMode? = null,
+  val topicNameDialogTopicId: String? = null,
+  val deleteConfirmTopicId: String? = null,
+  val addItemDialogVisible: Boolean = false,
+  val addItemDialogValidationMessage: String? = null,
+  val addItemDialogPrefill: AddItemDialogPrefill? = null,
+  val editingItem: KnowledgeItem? = null,
+  val editItemDialogValidationMessage: String? = null,
+  val deleteConfirmItemId: String? = null,
+  val homeSearchQuery: String = "",
+  val clipboardContent: String? = null,
+  val showClipboardDialog: Boolean = false,
+  val clipboardImageUri: String? = null,
+  val clipboardSourceUri: String? = null,
+  val clipboardSourceContentType: ContentType? = null,
+  val clipboardSourceDocumentFormat: DocumentFormat? = null,
+  val clipboardSourceFileName: String? = null,
+  val clipboardSourceLabel: String? = null,
+  val latestClipboardSnapshot: ClipboardSnapshot? = null,
+  val ignoredClipboardSnapshot: ClipboardSnapshot? = null,
 ) {
-    val itemsByTopic: Map<String, List<KnowledgeItem>> = items.groupBy { it.topicId }
+  val itemsByTopic: Map<String, List<KnowledgeItem>> = items.groupBy { it.topicId }
 
-    val selectedTopic: Topic? = topics.firstOrNull { it.id == selectedTopicId }
+  val selectedTopic: Topic? = topics.firstOrNull { it.id == selectedTopicId }
 
-    val selectedTopicItems: List<KnowledgeItem> = selectedTopicId
-        ?.let { topicId -> itemsByTopic[topicId].orEmpty() }
-        .orEmpty()
+  val selectedTopicItems: List<KnowledgeItem> =
+    selectedTopicId?.let { topicId -> itemsByTopic[topicId].orEmpty() }.orEmpty()
 
-    val visibleSelectedTopicItems: List<KnowledgeItem> = selectedTopicItems.let { topicItems ->
-        if (homeSearchQuery.isBlank()) {
-            topicItems
-        } else {
-            val query = homeSearchQuery.lowercase()
-            topicItems.filter { item ->
-                item.title.lowercase().contains(query) ||
-                    item.summary.lowercase().contains(query) ||
-                    item.fullText.lowercase().contains(query)
-            }
-        }
-    }
-
-    val recentTopics: List<Topic> = topics
-        .sortedByDescending { it.updatedAtEpochMillis }
-        .take(5)
-
-    val searchedTopics: List<Topic> = if (homeSearchQuery.isBlank()) {
-        recentTopics
+  val visibleSelectedTopicItems: List<KnowledgeItem> = selectedTopicItems.let { topicItems ->
+    if (homeSearchQuery.isBlank()) {
+      topicItems
     } else {
-        val query = homeSearchQuery.lowercase()
-        val matchingTopicIds = items
-            .filter { it.title.lowercase().contains(query) || it.summary.lowercase().contains(query) }
-            .map { it.topicId }
-            .toSet()
-        topics
-            .filter { it.title.lowercase().contains(query) || it.id in matchingTopicIds }
-            .sortedByDescending { it.updatedAtEpochMillis }
+      val query = homeSearchQuery.lowercase()
+      topicItems.filter { item ->
+        item.title.lowercase().contains(query) ||
+          item.summary.lowercase().contains(query) ||
+          item.fullText.lowercase().contains(query)
+      }
+    }
+  }
+
+  val recentTopics: List<Topic> = topics.sortedByDescending { it.updatedAtEpochMillis }.take(5)
+
+  val searchedTopics: List<Topic> =
+    if (homeSearchQuery.isBlank()) {
+      recentTopics
+    } else {
+      val query = homeSearchQuery.lowercase()
+      val matchingTopicIds =
+        items
+          .filter { it.title.lowercase().contains(query) || it.summary.lowercase().contains(query) }
+          .map { it.topicId }
+          .toSet()
+      topics
+        .filter { it.title.lowercase().contains(query) || it.id in matchingTopicIds }
+        .sortedByDescending { it.updatedAtEpochMillis }
     }
 }

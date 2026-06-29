@@ -25,67 +25,62 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun PaneHeader(
-    title: String,
-    modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    navigationIcon: @Composable () -> Unit = {},
-    actions: @Composable () -> Unit = {},
+  title: String,
+  modifier: Modifier = Modifier,
+  subtitle: String? = null,
+  navigationIcon: @Composable () -> Unit = {},
+  actions: @Composable () -> Unit = {},
 ) {
-    Surface(
-        tonalElevation = 0.dp,
-        color = MaterialTheme.colorScheme.surface,
-        modifier = modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.statusBars),
+  Surface(
+    tonalElevation = 0.dp,
+    color = MaterialTheme.colorScheme.surface,
+    modifier = modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars),
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+      verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            navigationIcon()
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (subtitle != null) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            actions()
+      navigationIcon()
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = title,
+          style = MaterialTheme.typography.headlineSmall,
+          color = MaterialTheme.colorScheme.onSurface,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+        if (subtitle != null) {
+          Spacer(modifier = Modifier.height(2.dp))
+          Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
         }
+      }
+      Spacer(modifier = Modifier.width(12.dp))
+      actions()
     }
+  }
 }
 
 @Composable
 fun HeaderIconButton(
-    icon: ImageVector,
-    contentDescription: String,
-    testTag: String,
-    onClick: () -> Unit,
+  icon: ImageVector,
+  contentDescription: String,
+  testTag: String,
+  onClick: () -> Unit,
 ) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.testTag(testTag),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+  IconButton(
+    onClick = onClick,
+    modifier = Modifier.testTag(testTag),
+  ) {
+    Icon(
+      imageVector = icon,
+      contentDescription = contentDescription,
+      tint = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+  }
 }
-

@@ -8,72 +8,71 @@ import androidx.compose.ui.unit.dp
 
 @Stable
 enum class LayoutMode {
-    COMPACT,
-    EXPANDED,
-    FOLDABLE,
+  COMPACT,
+  EXPANDED,
+  FOLDABLE,
 }
 
 @Stable
 data class WindowLayoutInfo(
-    val mode: LayoutMode,
-    val widthDp: Dp,
-    val hingeBounds: List<HingeBounds> = emptyList(),
+  val mode: LayoutMode,
+  val widthDp: Dp,
+  val hingeBounds: List<HingeBounds> = emptyList(),
 )
 
 @Stable
 data class HingeBounds(
-    val left: Int,
-    val top: Int,
-    val right: Int,
-    val bottom: Int,
+  val left: Int,
+  val top: Int,
+  val right: Int,
+  val bottom: Int,
 )
 
 object LayoutModeDefaults {
-    val COMPACT_MAX_WIDTH = 600.dp
-    val EXPANDED_MIN_WIDTH = 840.dp
+  val COMPACT_MAX_WIDTH = 600.dp
+  val EXPANDED_MIN_WIDTH = 840.dp
 }
 
 @Composable
-fun rememberWindowLayoutInfo(
-    hingeBounds: List<HingeBounds> = emptyList(),
-): WindowLayoutInfo {
-    val configuration = LocalConfiguration.current
-    val widthDp = configuration.screenWidthDp.dp
+fun rememberWindowLayoutInfo(hingeBounds: List<HingeBounds> = emptyList()): WindowLayoutInfo {
+  val configuration = LocalConfiguration.current
+  val widthDp = configuration.screenWidthDp.dp
 
-    val mode = when {
-        hingeBounds.isNotEmpty() -> LayoutMode.FOLDABLE
-        widthDp < LayoutModeDefaults.COMPACT_MAX_WIDTH -> LayoutMode.COMPACT
-        widthDp >= LayoutModeDefaults.EXPANDED_MIN_WIDTH -> LayoutMode.EXPANDED
-        else -> LayoutMode.EXPANDED
+  val mode =
+    when {
+      hingeBounds.isNotEmpty() -> LayoutMode.FOLDABLE
+      widthDp < LayoutModeDefaults.COMPACT_MAX_WIDTH -> LayoutMode.COMPACT
+      widthDp >= LayoutModeDefaults.EXPANDED_MIN_WIDTH -> LayoutMode.EXPANDED
+      else -> LayoutMode.EXPANDED
     }
 
-    return WindowLayoutInfo(
-        mode = mode,
-        widthDp = widthDp,
-        hingeBounds = hingeBounds,
-    )
+  return WindowLayoutInfo(
+    mode = mode,
+    widthDp = widthDp,
+    hingeBounds = hingeBounds,
+  )
 }
 
 fun HingeBounds.intersectsHorizontal(y: Int, height: Int): Boolean {
-    return y < this.bottom && (y + height) > this.top
+  return y < this.bottom && (y + height) > this.top
 }
 
 fun HingeBounds.intersectsVertical(x: Int, width: Int): Boolean {
-    return x < this.right && (x + width) > this.left
+  return x < this.right && (x + width) > this.left
 }
 
 fun List<HingeBounds>.isSafeHorizontalArea(y: Int, height: Int): Boolean {
-    return none { it.intersectsHorizontal(y, height) }
+  return none { it.intersectsHorizontal(y, height) }
 }
 
 fun List<HingeBounds>.isSafeVerticalArea(x: Int, width: Int): Boolean {
-    return none { it.intersectsVertical(x, width) }
+  return none { it.intersectsVertical(x, width) }
 }
 
 fun WindowLayoutInfo.shouldShowTwoPanes(selectedTopicId: String?): Boolean {
-    return when (mode) {
-        LayoutMode.COMPACT -> false
-        LayoutMode.EXPANDED -> true
-        LayoutMode.FOLDABLE -> true
-    }
+  return when (mode) {
+    LayoutMode.COMPACT -> false
+    LayoutMode.EXPANDED -> true
+    LayoutMode.FOLDABLE -> true
+  }
 }

@@ -21,99 +21,100 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 
 interface LocalInferenceGateway {
-    val serviceState: Flow<LocalModelState>
+  val serviceState: Flow<LocalModelState>
 
-    fun bind()
+  fun bind()
 
-    fun unbind()
+  fun unbind()
 
-    fun getEngine(): LocalLlmEngine?
+  fun getEngine(): LocalLlmEngine?
 
-    suspend fun summarize(
-        request: SmartSummarizeRequest,
-        topics: List<Topic>,
-        existingItems: List<KnowledgeItem>,
-    ): SmartSummarizeResult
+  suspend fun summarize(
+    request: SmartSummarizeRequest,
+    topics: List<Topic>,
+    existingItems: List<KnowledgeItem>,
+  ): SmartSummarizeResult
 
-    fun startModel(model: LocalModelInfo, backend: InferenceBackend)
+  fun startModel(model: LocalModelInfo, backend: InferenceBackend)
 
-    fun stopModel()
+  fun stopModel()
 }
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class LocalInferenceConnection(private val context: Context) : LocalInferenceGateway {
-    private val applicationContext = context.applicationContext
-    private val binderFlow = MutableStateFlow<LocalInferenceService.LocalInferenceBinder?>(null)
-    private var isBound = false
-    private var pendingStartRequest: StartModelRequest? = null
+  private val applicationContext = context.applicationContext
+  private val binderFlow = MutableStateFlow<LocalInferenceService.LocalInferenceBinder?>(null)
+  private var isBound = false
+  private var pendingStartRequest: StartModelRequest? = null
 
-    override val serviceState: Flow<LocalModelState> = binderFlow.flatMapLatest { binder ->
-        binder?.serviceState ?: flowOf(LocalModelState(status = LocalModelStatus.DOWNLOADED))
-    }
+  override val serviceState: Flow<LocalModelState> = binderFlow.flatMapLatest { binder ->
+    binder?.serviceState ?: flowOf(LocalModelState(status = LocalModelStatus.DOWNLOADED))
+  }
 
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            val binder = service as? LocalInferenceService.LocalInferenceBinder
-            binderFlow.value = binder
-            val request = pendingStartRequest
-            if (binder != null && request != null) {
-                pendingStartRequest = null
-                binder.startModel(request.model, request.backend)
-            }
+  private val connection =
+    object : ServiceConnection {
+      override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+        val binder = service as? LocalInferenceService.LocalInferenceBinder
+        binderFlow.value = binder
+        val request = pendingStartRequest
+        if (binder != null && request != null) {
+          pendingStartRequest = null
+          binder.startModel(request.model, request.backend)
         }
+      }
 
-        override fun onServiceDisconnected(name: ComponentName?) {
-            Log.w(TAG, "Local inference service disconnected: $name")
-            binderFlow.value = null
-            isBound = false
-        }
-    }
-
-    override fun bind() {
-        if (isBound) return
-        val intent = Intent(applicationContext, LocalInferenceService::class.java)
-        isBound = applicationContext.bindService(intent, connection, Context.BIND_AUTO_CREATE)
-    }
-
-    override fun unbind() {
-        if (!isBound) return
-        applicationContext.unbindService(connection)
-        isBound = false
+      override fun onServiceDisconnected(name: ComponentName?) {
+        Log.w(TAG, "Local inference service disconnected: $name")
         binderFlow.value = null
-        pendingStartRequest = null
+        isBound = false
+      }
     }
 
-    override fun getEngine(): LocalLlmEngine? = binderFlow.value?.getEngine()
+  override fun bind() {
+    if (isBound) return
+    val intent = Intent(applicationContext, LocalInferenceService::class.java)
+    isBound = applicationContext.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+  }
 
-    override suspend fun summarize(
-        request: SmartSummarizeRequest,
-        topics: List<Topic>,
-        existingItems: List<KnowledgeItem>,
-    ): SmartSummarizeResult {
-        val binder = binderFlow.value ?: return SmartSummarizeResult.Failure("本地 AI 不可用，请先开启模型")
-        return binder.summarize(request, topics, existingItems)
+  override fun unbind() {
+    if (!isBound) return
+    applicationContext.unbindService(connection)
+    isBound = false
+    binderFlow.value = null
+    pendingStartRequest = null
+  }
+
+  override fun getEngine(): LocalLlmEngine? = binderFlow.value?.getEngine()
+
+  override suspend fun summarize(
+    request: SmartSummarizeRequest,
+    topics: List<Topic>,
+    existingItems: List<KnowledgeItem>,
+  ): SmartSummarizeResult {
+    val binder = binderFlow.value ?: return SmartSummarizeResult.Failure("本地 AI 不可用，请先开启模型")
+    return binder.summarize(request, topics, existingItems)
+  }
+
+  override fun startModel(model: LocalModelInfo, backend: InferenceBackend) {
+    val binder = binderFlow.value
+    if (binder != null) {
+      binder.startModel(model, backend)
+      return
     }
+    pendingStartRequest = StartModelRequest(model, backend)
+    bind()
+  }
 
-    override fun startModel(model: LocalModelInfo, backend: InferenceBackend) {
-        val binder = binderFlow.value
-        if (binder != null) {
-            binder.startModel(model, backend)
-            return
-        }
-        pendingStartRequest = StartModelRequest(model, backend)
-        bind()
-    }
+  private data class StartModelRequest(
+    val model: LocalModelInfo,
+    val backend: InferenceBackend,
+  )
 
-    private data class StartModelRequest(
-        val model: LocalModelInfo,
-        val backend: InferenceBackend,
-    )
+  override fun stopModel() {
+    binderFlow.value?.stopModel()
+  }
 
-    override fun stopModel() {
-        binderFlow.value?.stopModel()
-    }
-
-    private companion object {
-        const val TAG = "LocalInferenceConnection"
-    }
+  private companion object {
+    const val TAG = "LocalInferenceConnection"
+  }
 }

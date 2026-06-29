@@ -18,122 +18,128 @@ import com.lyihub.archiveassistant.ui.theme.ImperialParchment
 import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 
 internal data class FolderVisual(
-    val description: String,
-    @param:DrawableRes val imageRes: Int,
-    val background: Color,
-    val accent: Color,
+  val description: String,
+  @param:DrawableRes val imageRes: Int,
+  val background: Color,
+  val accent: Color,
 )
 
 internal data class ArchiveTileVisual(
-    @param:DrawableRes val backgroundRes: Int,
-    val borderColor: Color,
+  @param:DrawableRes val backgroundRes: Int,
+  val borderColor: Color,
 )
 
 internal val ArchiveCutCornerShape: Shape = FixedCutCornerShape(10)
 
-private class FixedCutCornerShape(
-    private val notchDp: Int,
-) : Shape {
-    override fun createOutline(
-        size: Size,
-        layoutDirection: LayoutDirection,
-        density: Density,
-    ): Outline {
-        val notch = with(density) { notchDp.dp.toPx() }
-            .coerceAtMost(size.minDimension * 0.28f)
-        val path = Path().apply {
-            moveTo(notch, 0f)
-            lineTo(size.width - notch, 0f)
-            quadraticTo(size.width - notch, notch, size.width, notch)
-            lineTo(size.width, size.height - notch)
-            quadraticTo(size.width - notch, size.height - notch, size.width - notch, size.height)
-            lineTo(notch, size.height)
-            quadraticTo(notch, size.height - notch, 0f, size.height - notch)
-            lineTo(0f, notch)
-            quadraticTo(notch, notch, notch, 0f)
-            close()
-        }
-        return Outline.Generic(path)
-    }
+private class FixedCutCornerShape(private val notchDp: Int) : Shape {
+  override fun createOutline(
+    size: Size,
+    layoutDirection: LayoutDirection,
+    density: Density,
+  ): Outline {
+    val notch = with(density) { notchDp.dp.toPx() }.coerceAtMost(size.minDimension * 0.28f)
+    val path =
+      Path().apply {
+        moveTo(notch, 0f)
+        lineTo(size.width - notch, 0f)
+        quadraticTo(size.width - notch, notch, size.width, notch)
+        lineTo(size.width, size.height - notch)
+        quadraticTo(size.width - notch, size.height - notch, size.width - notch, size.height)
+        lineTo(notch, size.height)
+        quadraticTo(notch, size.height - notch, 0f, size.height - notch)
+        lineTo(0f, notch)
+        quadraticTo(notch, notch, notch, 0f)
+        close()
+      }
+    return Outline.Generic(path)
+  }
 }
 
-internal val ZhongshuTileVisual = ArchiveTileVisual(
+internal val ZhongshuTileVisual =
+  ArchiveTileVisual(
     backgroundRes = R.drawable.home_zhongshu_tile,
     borderColor = Color(0xFF9C4A37),
-)
+  )
 
-internal val MenxiaTileVisual = ArchiveTileVisual(
+internal val MenxiaTileVisual =
+  ArchiveTileVisual(
     backgroundRes = R.drawable.home_menxia_tile,
     borderColor = Color(0xFFDEC59E),
-)
+  )
 
-internal val MemorialTileVisual = ArchiveTileVisual(
+internal val MemorialTileVisual =
+  ArchiveTileVisual(
     backgroundRes = R.drawable.home_memorial_tile,
     borderColor = Color(0xFFAFD9BD),
-)
+  )
 
-internal val ClipboardTileVisual = ArchiveTileVisual(
+internal val ClipboardTileVisual =
+  ArchiveTileVisual(
     backgroundRes = R.drawable.home_clipboard_tile,
     borderColor = Color(0xFF78ABCC),
-)
+  )
 
-internal val SearchTileVisual = ArchiveTileVisual(
+internal val SearchTileVisual =
+  ArchiveTileVisual(
     backgroundRes = R.drawable.home_search_new_tile,
     borderColor = Color(0xFF3E3E46),
-)
+  )
 
-internal val HomeTileVisuals = listOf(
+internal val HomeTileVisuals =
+  listOf(
     ZhongshuTileVisual,
     MenxiaTileVisual,
     MemorialTileVisual,
     ClipboardTileVisual,
     SearchTileVisual,
-)
+  )
 
 internal fun homeTileVisual(index: Int): ArchiveTileVisual {
-    return HomeTileVisuals[index.floorMod(HomeTileVisuals.size)]
+  return HomeTileVisuals[index.floorMod(HomeTileVisuals.size)]
 }
 
-internal val FolderVisuals = listOf(
+internal val FolderVisuals =
+  listOf(
     FolderVisual(
-        description = "近期收藏与重点资料归档",
-        imageRes = R.drawable.tsieina_department_li,
-        background = ImperialParchment,
-        accent = ImperialUmber,
+      description = "近期收藏与重点资料归档",
+      imageRes = R.drawable.tsieina_department_li,
+      background = ImperialParchment,
+      accent = ImperialUmber,
     ),
     FolderVisual(
-        description = "按主题收束同类资料",
-        imageRes = R.drawable.tsieina_department_hu,
-        background = ImperialLightGold,
-        accent = ImperialCinnabar,
+      description = "按主题收束同类资料",
+      imageRes = R.drawable.tsieina_department_hu,
+      background = ImperialLightGold,
+      accent = ImperialCinnabar,
     ),
     FolderVisual(
-        description = "保留可复查的摘录与来源",
-        imageRes = R.drawable.tsieina_department_li2,
-        background = ImperialIvory,
-        accent = ImperialBronze,
+      description = "保留可复查的摘录与来源",
+      imageRes = R.drawable.tsieina_department_li2,
+      background = ImperialIvory,
+      accent = ImperialBronze,
     ),
     FolderVisual(
-        description = "聚合技术、工具与实现线索",
-        imageRes = R.drawable.tsieina_department_bing,
-        background = ImperialParchment,
-        accent = ImperialCinnabar,
+      description = "聚合技术、工具与实现线索",
+      imageRes = R.drawable.tsieina_department_bing,
+      background = ImperialParchment,
+      accent = ImperialCinnabar,
     ),
     FolderVisual(
-        description = "沉淀判断、风险与待复核内容",
-        imageRes = R.drawable.tsieina_department_xing,
-        background = ImperialIvory,
-        accent = ImperialUmber,
+      description = "沉淀判断、风险与待复核内容",
+      imageRes = R.drawable.tsieina_department_xing,
+      background = ImperialIvory,
+      accent = ImperialUmber,
     ),
     FolderVisual(
-        description = "整理产品、设计与制作材料",
-        imageRes = R.drawable.tsieina_department_gong,
-        background = ImperialLightGold,
-        accent = ImperialBronze,
+      description = "整理产品、设计与制作材料",
+      imageRes = R.drawable.tsieina_department_gong,
+      background = ImperialLightGold,
+      accent = ImperialBronze,
     ),
-)
+  )
 
-internal val MemorialCoverResources = listOf(
+internal val MemorialCoverResources =
+  listOf(
     R.drawable.memorial_cover_pattern,
     R.drawable.memorial_cover_02,
     R.drawable.memorial_cover_03,
@@ -157,7 +163,7 @@ internal val MemorialCoverResources = listOf(
     R.drawable.memorial_cover_21,
     R.drawable.memorial_cover_22,
     R.drawable.memorial_cover_23,
-)
+  )
 
 internal fun folderVisual(index: Int): FolderVisual = FolderVisuals[index % FolderVisuals.size]
 

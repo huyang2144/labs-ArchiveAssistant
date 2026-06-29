@@ -7,14 +7,12 @@ import com.lyihub.archiveassistant.domain.AiEngineSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class AiEngineSettingsRepository(
-    private val dataStore: DataStore<Preferences>,
-) {
-    val settings: Flow<AiEngineSettings> = dataStore.data.map(AiEngineSettingsPreferences::decode)
+class AiEngineSettingsRepository(private val dataStore: DataStore<Preferences>) {
+  val settings: Flow<AiEngineSettings> = dataStore.data.map(AiEngineSettingsPreferences::decode)
 
-    suspend fun save(settings: AiEngineSettings) {
-        dataStore.edit { preferences ->
-            AiEngineSettingsPreferences.encode(settings, preferences)
-        }
+  suspend fun save(settings: AiEngineSettings) {
+    dataStore.edit { preferences ->
+      AiEngineSettingsPreferences.encode(settings, preferences)
     }
+  }
 }

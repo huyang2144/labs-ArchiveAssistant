@@ -1,7 +1,5 @@
 package com.lyihub.archiveassistant.ui.theme
 
-import androidx.compose.ui.graphics.Color
-
 // App palette - constrained to the current imperial brief.
 val Parchment = ImperialParchment
 val Ivory = ImperialIvory

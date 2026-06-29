@@ -31,93 +31,95 @@ import com.lyihub.archiveassistant.ui.theme.ImperialIvory
 
 @Composable
 fun ArchiveDialog(
-    title: String,
-    onDismissRequest: () -> Unit,
-    modifier: Modifier = Modifier,
-    testTag: String? = null,
-    actions: @Composable RowScope.() -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
+  title: String,
+  onDismissRequest: () -> Unit,
+  modifier: Modifier = Modifier,
+  testTag: String? = null,
+  actions: @Composable RowScope.() -> Unit,
+  content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(8.dp)
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+  val shape = RoundedCornerShape(8.dp)
+  Dialog(
+    onDismissRequest = onDismissRequest,
+    properties = DialogProperties(usePlatformDefaultWidth = false),
+  ) {
+    Box(
+      modifier =
+        modifier
+          .widthIn(min = 320.dp, max = 600.dp)
+          .padding(horizontal = 22.dp)
+          .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
+          .clip(shape)
+          .background(ImperialIvory, shape)
+          .border(0.8.dp, ImperialBronze.copy(alpha = 0.28f), shape)
     ) {
-        Box(
-            modifier = modifier
-                .widthIn(min = 320.dp, max = 600.dp)
-                .padding(horizontal = 22.dp)
-                .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
-                .clip(shape)
-                .background(ImperialIvory, shape)
-                .border(0.8.dp, ImperialBronze.copy(alpha = 0.28f), shape),
-        ) {
-            XuanPaperBackground(
-                modifier = Modifier.matchParentSize(),
-                textureAlpha = 0.5f,
-                veilAlpha = 0.72f,
-            ) {}
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.Black,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                content()
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically,
-                    content = actions,
-                )
-            }
-        }
+      XuanPaperBackground(
+        modifier = Modifier.matchParentSize(),
+        textureAlpha = 0.5f,
+        veilAlpha = 0.72f,
+      ) {}
+      Column(
+        modifier = Modifier.fillMaxWidth().padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+      ) {
+        Text(
+          text = title,
+          style = MaterialTheme.typography.headlineSmall,
+          color = Color.Black,
+          maxLines = 2,
+          overflow = TextOverflow.Ellipsis,
+        )
+        content()
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+          verticalAlignment = Alignment.CenterVertically,
+          content = actions,
+        )
+      }
     }
+  }
 }
 
 @Composable
 fun ArchiveDialogAction(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    destructive: Boolean = false,
-    primary: Boolean = false,
-    testTag: String? = null,
+  label: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  enabled: Boolean = true,
+  destructive: Boolean = false,
+  primary: Boolean = false,
+  testTag: String? = null,
 ) {
-    val shape = RoundedCornerShape(4.dp)
-    val contentColor = when {
-        destructive -> ImperialCinnabar
-        primary -> Color.Black
-        else -> Color.Black.copy(alpha = 0.76f)
+  val shape = RoundedCornerShape(4.dp)
+  val contentColor =
+    when {
+      destructive -> ImperialCinnabar
+      primary -> Color.Black
+      else -> Color.Black.copy(alpha = 0.76f)
     }
-    val backgroundColor = if (primary) {
-        ImperialBronze.copy(alpha = 0.18f)
+  val backgroundColor =
+    if (primary) {
+      ImperialBronze.copy(alpha = 0.18f)
     } else {
-        Color.White.copy(alpha = 0.42f)
+      Color.White.copy(alpha = 0.42f)
     }
-    Box(
-        modifier = modifier
-            .clip(shape)
-            .background(backgroundColor, shape)
-            .border(0.7.dp, contentColor.copy(alpha = 0.22f), shape)
-            .clickable(enabled = enabled, onClick = onClick)
-            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (enabled) contentColor else contentColor.copy(alpha = 0.42f),
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
-            maxLines = 1,
-        )
-    }
+  Box(
+    modifier =
+      modifier
+        .clip(shape)
+        .background(backgroundColor, shape)
+        .border(0.7.dp, contentColor.copy(alpha = 0.22f), shape)
+        .clickable(enabled = enabled, onClick = onClick)
+        .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+    contentAlignment = Alignment.Center,
+  ) {
+    Text(
+      text = label,
+      style = MaterialTheme.typography.labelLarge,
+      color = if (enabled) contentColor else contentColor.copy(alpha = 0.42f),
+      modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+      maxLines = 1,
+    )
+  }
 }
