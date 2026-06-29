@@ -83,7 +83,7 @@ private const val MemorialActiveSlotDegrees = 225f
 private const val MemorialWheelDragDegreesPerPixel = -0.18f
 private const val MemorialWheelActiveScale = 1.58f
 private const val MemorialWheelFocusHalfRangeDegrees = 24f
-private const val MemorialWheelDepartmentLabelVisibleStart = 0.88f
+private const val MemorialWheelDepartmentLabelVisibleStart = 0.8f
 private const val MemorialWheelDepartmentLabelVisibleEnd = 0.965f
 private const val MemorialWheelCoverSeed = 20260627
 private const val MemorialWheelDuplicateGuard = 3
@@ -512,13 +512,11 @@ private fun MemorialWheelCover(
 }
 
 internal fun departmentLabelAlpha(focus: Float): Float {
-  val eased =
-    smoothStep(
-      MemorialWheelDepartmentLabelVisibleStart,
-      MemorialWheelDepartmentLabelVisibleEnd,
-      focus,
-    )
-  return eased * eased
+  return smoothStep(
+    MemorialWheelDepartmentLabelVisibleStart,
+    MemorialWheelDepartmentLabelVisibleEnd,
+    focus,
+  )
 }
 
 @Composable

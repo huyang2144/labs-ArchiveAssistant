@@ -9,7 +9,7 @@ class MemorialBriefingPaneTest {
   fun departmentLabelAlpha_hidesNearActiveNeighbors() {
     assertEquals(0f, departmentLabelAlpha(0f), 0.001f)
     assertEquals(0f, departmentLabelAlpha(0.8f), 0.001f)
-    assertTrue(departmentLabelAlpha(0.9f) < 0.45f)
+    assertTrue(departmentLabelAlpha(0.9f) in 0.55f..0.75f)
   }
 
   @Test

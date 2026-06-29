@@ -1,6 +1,9 @@
 package com.lyihub.archiveassistant.ui.screens
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,10 +41,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -61,9 +70,16 @@ import com.lyihub.archiveassistant.ui.theme.ImperialIvory
 import com.lyihub.archiveassistant.ui.theme.ImperialTitleFont
 import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 import com.lyihub.archiveassistant.util.toChineseCount
+import kotlinx.coroutines.delay
 
 private val HomeInk = ImperialUmber
 private val HomePaper = ImperialIvory
+private const val HomePulseSwitchMillis = 2000L
+
+private enum class HomePulseTarget {
+  Zhongshu,
+  Menxia,
+}
 
 private val FolderFallbackTitles =
   listOf(
@@ -171,8 +187,19 @@ private fun ColumnScope.HomeMosaic(
   isManagingMinistries: Boolean,
   onToggleManage: () -> Unit,
 ) {
+  var pulseTarget by remember { mutableStateOf<HomePulseTarget?>(null) }
+  var pulseRunId by remember { mutableStateOf(0) }
+  LaunchedEffect(pulseRunId) {
+    if (pulseRunId == 0) return@LaunchedEffect
+    pulseTarget = HomePulseTarget.Zhongshu
+    delay(HomePulseSwitchMillis)
+    pulseTarget = HomePulseTarget.Menxia
+    delay(HomePulseSwitchMillis)
+    pulseTarget = null
+  }
   HomeHeaderRow(
     appTitle = appTitle,
+    onTitlePulseRequested = { pulseRunId += 1 },
     onOpenSettings = onOpenSettings,
     modifier = Modifier.fillMaxWidth(),
   )
@@ -184,6 +211,7 @@ private fun ColumnScope.HomeMosaic(
     onSearchQueryChanged = onSearchQueryChanged,
     validationMessage = validationMessage,
     smartSummarizationMessage = smartSummarizationMessage,
+    pulseTarget = pulseTarget,
     modifier = Modifier.fillMaxWidth(),
   )
   MinistryStampStack(
@@ -202,11 +230,13 @@ private fun ColumnScope.HomeMosaic(
 @Composable
 private fun HomeHeaderRow(
   appTitle: String,
+  onTitlePulseRequested: () -> Unit,
   onOpenSettings: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   TitleCell(
     appTitle = appTitle,
+    onTitlePulseRequested = onTitlePulseRequested,
     onOpenSettings = onOpenSettings,
     modifier = modifier,
   )
@@ -215,6 +245,7 @@ private fun HomeHeaderRow(
 @Composable
 private fun TitleCell(
   appTitle: String,
+  onTitlePulseRequested: () -> Unit,
   onOpenSettings: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
@@ -239,6 +270,7 @@ private fun TitleCell(
         color = Color.Black,
         fontWeight = FontWeight.Normal,
         maxLines = 1,
+        modifier = Modifier.clickable(onClick = onTitlePulseRequested),
       )
       Text(
         text = "拾取资料、整理主题、轮盘批阅、瀑布流阅读",
@@ -271,6 +303,7 @@ private fun HomeFeatureCell(
   ornamentTint: Color? = null,
   mirrorOrnament: Boolean = false,
   textAlignment: Alignment = Alignment.BottomStart,
+  pulseActive: Boolean = false,
 ) {
   CutoutCell(
     modifier =
@@ -278,6 +311,11 @@ private fun HomeFeatureCell(
     contentColor = contentColor,
     tileVisual = tileVisual,
   ) {
+    TilePulseWave(
+      active = pulseActive,
+      color = tileVisual.borderColor,
+      modifier = Modifier.matchParentSize(),
+    )
     HomeOrnament(
       imageRes = ornamentRes,
       modifier =
@@ -326,6 +364,54 @@ private fun HomeFeatureCell(
 }
 
 @Composable
+private fun TilePulseWave(
+  active: Boolean,
+  color: Color,
+  modifier: Modifier = Modifier,
+) {
+  val progress = remember { Animatable(0f) }
+  LaunchedEffect(active) {
+    if (active) {
+      progress.snapTo(0f)
+      progress.animateTo(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = 1400, easing = LinearEasing),
+      )
+    } else {
+      progress.snapTo(0f)
+    }
+  }
+  if (!active && progress.value <= 0f) return
+  Box(
+    modifier =
+      modifier.drawBehind {
+        val maxStroke = size.minDimension * 0.075f
+        val baseStroke = maxStroke.coerceAtLeast(2f)
+        repeat(3) { index ->
+          val phase = (progress.value + index * 0.24f).coerceIn(0f, 1f)
+          val inset = size.minDimension * 0.13f * phase
+          val alpha = (1f - phase).coerceIn(0f, 1f) * 0.34f
+          drawRoundRect(
+            color = color.copy(alpha = alpha),
+            topLeft = Offset(-inset, -inset),
+            size =
+              Size(
+                width = size.width + inset * 2f,
+                height = size.height + inset * 2f,
+              ),
+            cornerRadius =
+              CornerRadius(
+                x = size.minDimension * 0.12f,
+                y = size.minDimension * 0.12f,
+              ),
+            style = Stroke(width = baseStroke * (1f - phase * 0.35f)),
+          )
+        }
+      }
+  )
+}
+
+@Composable
 private fun PalaceDashboardBlock(
   pendingCount: Int,
   onOpenClipboard: () -> Unit,
@@ -334,6 +420,7 @@ private fun PalaceDashboardBlock(
   onSearchQueryChanged: (String) -> Unit,
   validationMessage: String?,
   smartSummarizationMessage: String?,
+  pulseTarget: HomePulseTarget?,
   modifier: Modifier = Modifier,
 ) {
   BoxWithConstraints(modifier = modifier) {
@@ -367,6 +454,7 @@ private fun PalaceDashboardBlock(
             ornamentSize = 96.dp,
             ornamentOffsetX = 18.dp,
             ornamentTint = Color.White,
+            pulseActive = pulseTarget == HomePulseTarget.Zhongshu,
           )
           HomeFeatureCell(
             title = "门下递奏",
@@ -382,6 +470,7 @@ private fun PalaceDashboardBlock(
             ornamentOffsetX = (-10).dp,
             ornamentAlignment = Alignment.CenterStart,
             textAlignment = Alignment.BottomEnd,
+            pulseActive = pulseTarget == HomePulseTarget.Menxia,
           )
         }
         MemorialCell(
