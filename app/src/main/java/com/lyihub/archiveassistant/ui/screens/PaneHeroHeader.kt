@@ -1,5 +1,6 @@
 package com.lyihub.archiveassistant.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ internal fun PaneHeroHeader(
   modifier: Modifier = Modifier,
   showBackButton: Boolean = false,
   onBack: (() -> Unit)? = null,
+  onTitleClick: (() -> Unit)? = null,
 ) {
   Column(
     modifier = modifier.fillMaxWidth(),
@@ -52,7 +54,11 @@ internal fun PaneHeroHeader(
         fontWeight = FontWeight.Normal,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.weight(1f),
+        modifier =
+          Modifier.weight(1f)
+            .then(
+              if (onTitleClick != null) Modifier.clickable(onClick = onTitleClick) else Modifier
+            ),
       )
     }
     Text(

@@ -77,7 +77,7 @@ import kotlinx.coroutines.delay
 private val HomeInk = ImperialUmber
 private val HomePaper = ImperialIvory
 private val ZhongshuWorkLight = Color(0xFF55DDEB)
-private val MenxiaWorkLight = Color(0xFFFFD166)
+private val MenxiaWorkLight = ZhongshuWorkLight
 private const val HomePulseCycleMillis = 1800
 private const val HomePulseCyclesPerTarget = 1
 private const val HomePulseTargetMillis = HomePulseCycleMillis * HomePulseCyclesPerTarget
@@ -372,7 +372,7 @@ private fun HomeFeatureCell(
         modifier = Modifier.matchParentSize(),
       )
       BoxWithConstraints(modifier = Modifier.matchParentSize()) {
-        val activeOrnamentSize = ornamentSize * 0.58f
+        val activeOrnamentSize = ornamentSize * 0.5f
         val activeOrnamentOffsetY = -(maxHeight / 2f) + activeOrnamentSize / 2f + 8.dp
         val activeOrnamentOffsetX =
           if (ornamentAlignment == Alignment.CenterStart) 8.dp else (-8).dp
@@ -512,7 +512,7 @@ private fun WorkStatusLine(
     )
     Text(
       text = "loading...",
-      style = MaterialTheme.typography.labelMedium.copy(fontFamily = ImperialDisplayFont),
+      style = MaterialTheme.typography.bodySmall.copy(fontFamily = ImperialDisplayFont),
       color = contentColor.copy(alpha = 0.92f),
       maxLines = 1,
     )

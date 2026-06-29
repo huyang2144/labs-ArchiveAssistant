@@ -128,28 +128,37 @@ fun MemorialBriefingPane(
   onBack: (() -> Unit)? = null,
 ) {
   var activeBriefIndex by remember { mutableIntStateOf(0) }
+  var showEmptyState by remember { mutableStateOf(false) }
   val briefingSamples = remember(briefingItems) { briefingSamplesFor(briefingItems) }
   Box(
     modifier =
-      modifier.fillMaxSize().background(ImperialIvory).clickable(onClick = onOpenMemorialDemo)
+      modifier
+        .fillMaxSize()
+        .background(ImperialIvory)
+        .clickable(enabled = !showEmptyState, onClick = onOpenMemorialDemo)
   ) {
-    MemorialCoverWheel(
-      coverResources = MemorialCoverResources,
-      briefingSamples = briefingSamples,
-      pendingCount = pendingCount,
-      onActiveIndexChanged = { activeBriefIndex = it },
-      modifier = Modifier.fillMaxSize(),
-    )
-    BriefingCopy(
-      activeIndex = activeBriefIndex,
-      samples = briefingSamples,
-      showBackButton = showBackButton,
-      onBack = onBack,
-      modifier =
-        Modifier.align(Alignment.TopStart)
-          .padding(start = 24.dp, top = 56.dp, end = 24.dp)
-          .fillMaxWidth(),
-    )
+    if (showEmptyState) {
+      EmptyMemorialBriefingState(modifier = Modifier.fillMaxSize())
+    } else {
+      MemorialCoverWheel(
+        coverResources = MemorialCoverResources,
+        briefingSamples = briefingSamples,
+        pendingCount = pendingCount,
+        onActiveIndexChanged = { activeBriefIndex = it },
+        modifier = Modifier.fillMaxSize(),
+      )
+      BriefingCopy(
+        activeIndex = activeBriefIndex,
+        samples = briefingSamples,
+        showBackButton = showBackButton,
+        onBack = onBack,
+        onTitleClick = { showEmptyState = true },
+        modifier =
+          Modifier.align(Alignment.TopStart)
+            .padding(start = 24.dp, top = 56.dp, end = 24.dp)
+            .fillMaxWidth(),
+      )
+    }
   }
 }
 
@@ -309,6 +318,19 @@ private fun PendingVerticalNote(
       textAlign = TextAlign.Center,
       lineHeight = 31.sp,
       modifier = Modifier.align(Alignment.Center).width(31.dp),
+    )
+  }
+}
+
+@Composable
+private fun EmptyMemorialBriefingState(modifier: Modifier = Modifier) {
+  Box(
+    modifier = modifier,
+    contentAlignment = Alignment.Center,
+  ) {
+    PendingVerticalNote(
+      lines = "暂无奏章待批".map { it.toString() },
+      modifier = Modifier.width(64.dp).height(214.dp),
     )
   }
 }
@@ -606,6 +628,7 @@ private fun BriefingCopy(
   samples: List<BriefingSample>,
   showBackButton: Boolean,
   onBack: (() -> Unit)?,
+  onTitleClick: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val sample = samples[floorMod(activeIndex, samples.size)]
@@ -618,6 +641,7 @@ private fun BriefingCopy(
       description = "轻触此页展开奏章堆叠，准、驳、留中皆可一笔批下",
       showBackButton = showBackButton,
       onBack = onBack,
+      onTitleClick = onTitleClick,
       modifier = Modifier.fillMaxWidth(),
     )
     MemorialBriefCard(
