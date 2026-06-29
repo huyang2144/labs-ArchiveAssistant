@@ -138,6 +138,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private var onCloseAnimationFinished: (() -> Unit)? = null
   private var readerMode = MemorialReaderMode.ReviewStack
   private var hasPlayedOpenAnimation = false
+  private var coverSequenceOffset = 0
   private val showSummaryRunnable = Runnable {
     if (
       stage == MemorialStage.CoverOnly &&
@@ -198,6 +199,12 @@ internal class MemorialFoldView(context: Context) : View(context) {
     coverStackIndex = 0
     resetToCoverStack()
     rebuildPagesForCurrentDossier()
+  }
+
+  fun setCoverSequenceOffset(offset: Int) {
+    if (coverSequenceOffset == offset) return
+    coverSequenceOffset = offset
+    invalidate()
   }
 
   private fun resetToCoverStack() {
@@ -2043,7 +2050,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawCoverBackground(canvas: Canvas, rect: RectF, coverSequenceIndex: Int) {
-    assets.coverTextureFor(coverSequenceIndex)?.let { texture ->
+    assets.coverTextureFor(coverSequenceIndex + coverSequenceOffset)?.let { texture ->
       drawBitmapCenterCrop(canvas, texture, rect, paints.cover)
     }
       ?: run {

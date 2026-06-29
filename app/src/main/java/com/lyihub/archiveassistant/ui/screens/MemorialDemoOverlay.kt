@@ -132,6 +132,7 @@ fun ArticleMemorialReaderOverlay(
 ) {
   val foldView = remember { mutableStateOf<MemorialFoldView?>(null) }
   val dossier = remember(item) { buildPendingDossier(item) }
+  val coverSequenceOffset = remember(item) { stableArticleCoverOffset(item) }
   var visible by remember { mutableStateOf(false) }
   var closing by remember { mutableStateOf(false) }
   var pendingDismiss by remember { mutableStateOf(false) }
@@ -201,6 +202,7 @@ fun ArticleMemorialReaderOverlay(
           MemorialFoldView(context).apply {
             foldView.value = this
             setReaderMode(MemorialReaderMode.ArticleReader)
+            setCoverSequenceOffset(coverSequenceOffset)
             setAutoDismissHandler(requestDismiss)
             setCloseAnimationFinishedHandler(finishAfterViewClose)
             setDossiers(listOf(dossier))
@@ -209,6 +211,7 @@ fun ArticleMemorialReaderOverlay(
         update = { view ->
           foldView.value = view
           view.setReaderMode(MemorialReaderMode.ArticleReader)
+          view.setCoverSequenceOffset(coverSequenceOffset)
           view.setAutoDismissHandler(requestDismiss)
           view.setCloseAnimationFinishedHandler(finishAfterViewClose)
           view.setDossiers(listOf(dossier))
@@ -265,6 +268,11 @@ internal fun buildPendingDossier(item: KnowledgeItem): PendingMemorialDossier {
     imageResName = item.imageResName,
     createdAtEpochMillis = item.createdAtEpochMillis,
   )
+}
+
+private fun stableArticleCoverOffset(item: KnowledgeItem): Int {
+  val seed = "${item.id}|${item.title}".hashCode()
+  return positiveMod(seed, MemorialCoverResources.size)
 }
 
 private fun sourceLine(item: KnowledgeItem): String {

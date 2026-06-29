@@ -134,7 +134,7 @@ fun DetailPane(
 ) {
   val horizontalPadding = 24.dp
   val topPadding = 56.dp
-  val headerOverlayHeight = if (items.isEmpty()) 100.dp else 132.dp
+  val headerOverlayHeight = if (items.isEmpty()) 100.dp else 124.dp
   val listState = rememberLazyListState()
   val density = LocalDensity.current
   val headerFadeDistancePx = with(density) { 58.dp.toPx() }

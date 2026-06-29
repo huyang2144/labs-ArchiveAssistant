@@ -466,7 +466,7 @@ private fun MemorialWheelInnerDisc(
   modifier: Modifier = Modifier,
 ) {
   val diameter = radius * 2f
-  val iconSize = 84.dp
+  val iconSize = 76.dp
   Box(modifier = modifier) {
     Box(
       modifier =
@@ -725,9 +725,9 @@ private fun MemorialBriefCard(
   modifier: Modifier = Modifier,
 ) {
   MemorialFramedPaperPanel(
-    modifier = modifier.fillMaxWidth().heightIn(min = 70.dp),
+    modifier = modifier.fillMaxWidth().heightIn(min = 72.dp),
     cornerSize = 18.dp,
-    contentPadding = PaddingValues(horizontal = 17.dp, vertical = 11.dp),
+    contentPadding = PaddingValues(horizontal = 17.dp, vertical = 9.dp),
   ) {
     AnimatedContent(
       targetState = sample,
@@ -737,17 +737,17 @@ private fun MemorialBriefCard(
       label = "memorialBriefCardContent",
       modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(),
     ) { activeSample ->
-      Box(modifier = Modifier.fillMaxWidth()) {
+      Box(modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp)) {
         Image(
           painter = painterResource(id = activeSample.departmentImageRes),
           contentDescription = null,
-          modifier = Modifier.align(Alignment.BottomEnd).size(66.dp),
+          modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp).size(72.dp),
           contentScale = ContentScale.Fit,
-          alpha = 0.16f,
+          alpha = 0.24f,
         )
         Column(
-          modifier = Modifier.fillMaxWidth().padding(end = 48.dp),
-          verticalArrangement = Arrangement.spacedBy(5.dp),
+          modifier = Modifier.fillMaxWidth().align(Alignment.CenterStart).padding(end = 56.dp),
+          verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
           Text(
             text = activeSample.title,
