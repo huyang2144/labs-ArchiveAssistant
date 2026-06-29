@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -230,13 +229,7 @@ private fun ReaderDismissButton(
   modifier: Modifier = Modifier,
 ) {
   Box(
-    modifier =
-      modifier
-        .shadow(8.dp, ArchiveFlatCutShape, clip = false)
-        .background(Color.Transparent, ArchiveFlatCutShape)
-        .clickable(onClick = onClick)
-        .width(116.dp)
-        .height(42.dp),
+    modifier = modifier.clickable(onClick = onClick).width(116.dp).height(42.dp),
     contentAlignment = Alignment.Center,
   ) {
     Image(

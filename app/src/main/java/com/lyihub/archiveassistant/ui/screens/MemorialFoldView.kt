@@ -2235,7 +2235,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
         label.bottom - innerInset,
       )
     drawInsideStrokeRect(canvas, innerLabel, paints.gold)
-    drawCoverCornerOrnaments(canvas, innerLabel)
+    drawCoverCornerOrnaments(canvas, innerLabel, sizeScale = 0.17f)
 
     val titlePaint =
       TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -2246,45 +2246,30 @@ internal class MemorialFoldView(context: Context) : View(context) {
       }
     val titleLineGap = dp(5f)
     val coverTitleLineGap = dp(18f)
-    val titleColumns =
-      verticalTextColumns(
+    val titleText =
+      ellipsizeVerticalText(
         text = dossier.title,
         paint = titlePaint,
-        maxHeight = innerLabel.height() - dp(72f),
+        maxHeight = innerLabel.height() - dp(76f),
         lineGap = titleLineGap,
-        maxColumns = 2,
       )
-    val titleColumnWidth =
-      titleColumns.maxOfOrNull { verticalTextWidth(it, titlePaint) }
-        ?: verticalTextWidth("", titlePaint)
+    val titleColumnWidth = verticalTextWidth(titleText, titlePaint)
     val coverColumnWidth = verticalTextWidth("奏章", paints.coverTitle)
-    val titleColumnGap = dp(9f)
-    val columnGap = dp(8f)
-    val groupWidth =
-      titleColumns.size * titleColumnWidth +
-        (titleColumns.size - 1).coerceAtLeast(0) * titleColumnGap +
-        columnGap +
-        coverColumnWidth
+    val columnGap = dp(5f)
+    val groupWidth = titleColumnWidth + columnGap + coverColumnWidth
     val groupLeft = label.centerX() - groupWidth / 2f
     val coverTitleHeight = verticalTextHeight("奏章", paints.coverTitle, coverTitleLineGap)
-    val contentTop = innerLabel.top + dp(28f)
-    val coverTitleTop = innerLabel.centerY() - coverTitleHeight / 2f
-    titleColumns.forEachIndexed { index, titleText ->
-      drawVerticalText(
-        canvas = canvas,
-        text = titleText,
-        paint = titlePaint,
-        centerX = groupLeft + index * (titleColumnWidth + titleColumnGap) + titleColumnWidth / 2f,
-        top = contentTop,
-        lineGap = titleLineGap,
-      )
-    }
-    val coverColumnX =
-      groupLeft +
-        titleColumns.size * titleColumnWidth +
-        (titleColumns.size - 1).coerceAtLeast(0) * titleColumnGap +
-        columnGap +
-        coverColumnWidth / 2f
+    val titleTop = innerLabel.top + dp(26f)
+    val coverTitleTop = innerLabel.centerY() - coverTitleHeight / 2f - dp(10f)
+    drawVerticalText(
+      canvas = canvas,
+      text = titleText,
+      paint = titlePaint,
+      centerX = groupLeft + titleColumnWidth / 2f,
+      top = titleTop,
+      lineGap = titleLineGap,
+    )
+    val coverColumnX = groupLeft + titleColumnWidth + columnGap + coverColumnWidth / 2f
     drawVerticalText(
       canvas = canvas,
       text = "奏章",
@@ -2565,7 +2550,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
           typeface = assets.songTypeface
           letterSpacing = 0.02f
         }
-      val titleWidth = (rect.width() - dp(84f)).roundToInt().coerceAtLeast(1)
+      val titleWidth = (rect.width() - dp(108f)).roundToInt().coerceAtLeast(1)
       val titleLayout =
         buildEllipsizedTextLayout(
           dossier.title,
@@ -2578,7 +2563,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       drawStaticLayout(
         canvas = canvas,
         layout = titleLayout,
-        left = rect.centerX() - titleWidth / 2f,
+        left = rect.left + (rect.width() - titleLayout.width) / 2f,
         top = y,
       )
       y += titleLayout.height + dp(18f)
@@ -2685,45 +2670,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
     val charStep = paint.textSize + lineGap
     val availableChars = ((maxHeight - ellipsisHeight) / charStep).toInt().coerceAtLeast(1)
     return normalized.take(availableChars) + ellipsis
-  }
-
-  private fun verticalTextColumns(
-    text: String,
-    paint: TextPaint,
-    maxHeight: Float,
-    lineGap: Float,
-    maxColumns: Int,
-  ): List<String> {
-    val normalized = text.trim()
-    if (normalized.isEmpty()) return listOf("")
-    val charStep = paint.textSize + lineGap
-    val charsPerColumn = (maxHeight / charStep).toInt().coerceAtLeast(1)
-    if (normalized.length <= charsPerColumn) return listOf(normalized)
-    val columns = mutableListOf<String>()
-    var cursor = 0
-    repeat(maxColumns) { columnIndex ->
-      if (cursor >= normalized.length) return@repeat
-      val remainingColumns = maxColumns - columnIndex
-      val remaining = normalized.length - cursor
-      val take =
-        if (remainingColumns == 1) {
-          remaining
-        } else {
-          min(charsPerColumn, (remaining + remainingColumns - 1) / remainingColumns)
-        }
-      columns += normalized.substring(cursor, cursor + take.coerceAtMost(remaining))
-      cursor += take
-    }
-    if (cursor < normalized.length && columns.isNotEmpty()) {
-      columns[columns.lastIndex] =
-        ellipsizeVerticalText(
-          columns.last() + normalized.substring(cursor),
-          paint,
-          maxHeight,
-          lineGap,
-        )
-    }
-    return columns.ifEmpty { listOf(ellipsizeVerticalText(normalized, paint, maxHeight, lineGap)) }
   }
 
   private fun drawPageNumber(canvas: Canvas, rect: RectF, pageNumber: String) {

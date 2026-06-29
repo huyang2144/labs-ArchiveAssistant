@@ -614,15 +614,18 @@ private fun MemorialCoverLabel(
   focus: Float,
   modifier: Modifier = Modifier,
 ) {
-  val labelWidth = lerpFloat(0.48f, 0.5f, focus)
-  val labelHeight = lerpFloat(0.56f, 0.58f, focus)
-  val cornerSize = lerpDp(11.dp, 15.dp, focus)
+  val labelWidth = 0.49f
+  val labelHeight = 0.57f
+  val cornerSizeRatio = 0.22f
   val cornerAlpha = lerpFloat(0.72f, 0.94f, focus)
   BoxWithConstraints(modifier = modifier) {
+    val labelBoxWidth = maxWidth * labelWidth
+    val labelBoxHeight = labelBoxWidth / (MemorialCoverAspect / labelHeight * labelWidth)
+    val cornerSize = minOf(labelBoxWidth, labelBoxHeight) * cornerSizeRatio
     Box(
       modifier =
         Modifier.align(Alignment.Center)
-          .width(maxWidth * labelWidth)
+          .width(labelBoxWidth)
           .aspectRatio(MemorialCoverAspect / labelHeight * labelWidth)
           .clip(RoundedCornerShape(2.dp))
           .background(ImperialIvory.copy(alpha = lerpFloat(0.9f, 0.96f, focus)))
