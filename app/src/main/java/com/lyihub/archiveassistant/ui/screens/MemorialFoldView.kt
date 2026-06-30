@@ -783,7 +783,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private fun openingBaseLeft(): Float {
     val progress = openProgress.coerceIn(0f, 1f)
     val coverStart = foldLeft + openingAlignmentOffset()
-    val readingStart = foldLeft + readingContentInset()
+    val readingStart = foldLeft
     return lerp(coverStart, readingStart, progress)
   }
 
@@ -973,13 +973,28 @@ internal class MemorialFoldView(context: Context) : View(context) {
     val bottomGap = dp(12f) * controlScale
     val buttonHeight = dp(48f) * controlScale
     val bottomTop = foldBottom - buttonHeight - dp(18f) * controlScale
-    buttonLayouter.layoutButtonRow(
-      rects = listOf(coverActionLeftRect, coverActionRightRect, coverActionKeepRect),
+    val bottomButtonWidth = min(buttonHeight * assets.buttonAspectRatio, controlsWidth * 0.31f)
+    val bottomSideInset = bottomButtonWidth / 2f
+    buttonLayouter.layoutAspectButton(
+      rect = coverActionLeftRect,
+      centerX = foldLeft + bottomSideInset,
+      top = bottomTop,
+      height = buttonHeight,
+      maxWidth = bottomButtonWidth,
+    )
+    buttonLayouter.layoutAspectButton(
+      rect = coverActionKeepRect,
       centerX = foldLeft + (foldRight - foldLeft) / 2f,
       top = bottomTop,
       height = buttonHeight,
-      desiredGap = bottomGap,
-      maxWidth = controlsWidth,
+      maxWidth = bottomButtonWidth,
+    )
+    buttonLayouter.layoutAspectButton(
+      rect = coverActionRightRect,
+      centerX = foldRight - bottomSideInset,
+      top = bottomTop,
+      height = buttonHeight,
+      maxWidth = bottomButtonWidth,
     )
 
     val topTotalWidth = min(dp(430f), controlsWidth)
@@ -1284,14 +1299,21 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     val title = "诸折皆毕"
     val body = "伏愿皇上少憩片刻，以养宸躬。"
-    val maxTextWidth = rect.width() * 0.74f
+    val maxTextWidth = rect.width() * 0.72f
     val fittedTitle =
       TextUtils.ellipsize(title, completionTitlePaint, maxTextWidth, TextUtils.TruncateAt.END)
-    val fittedBody =
-      TextUtils.ellipsize(body, completionBodyPaint, maxTextWidth, TextUtils.TruncateAt.END)
-    val titleCenterY = rect.centerY() - rect.height() * 0.18f * contentScale
+    val bodyLayout =
+      buildEllipsizedTextLayout(
+        body,
+        completionBodyPaint,
+        maxTextWidth.roundToInt().coerceAtLeast(1),
+        1.22f,
+        2,
+        Layout.Alignment.ALIGN_CENTER,
+      )
+    val titleCenterY = rect.centerY() - rect.height() * 0.28f * contentScale
     val bodyCenterY = rect.centerY()
-    val stampCenterY = rect.centerY() + rect.height() * 0.18f * contentScale
+    val stampCenterY = rect.centerY() + rect.height() * 0.28f * contentScale
     drawCenteredText(
       canvas = canvas,
       text = fittedTitle.toString(),
@@ -1299,12 +1321,11 @@ internal class MemorialFoldView(context: Context) : View(context) {
       baseline = titleCenterY + textCenterOffset(completionTitlePaint),
       paint = completionTitlePaint,
     )
-    drawCenteredText(
+    drawStaticLayout(
       canvas = canvas,
-      text = fittedBody.toString(),
-      x = rect.centerX(),
-      baseline = bodyCenterY + textCenterOffset(completionBodyPaint),
-      paint = completionBodyPaint,
+      layout = bodyLayout,
+      left = rect.centerX() - bodyLayout.width / 2f,
+      top = bodyCenterY - bodyLayout.height / 2f,
     )
     drawHorizontalRetreatStamp(canvas, rect.centerX(), stampCenterY, contentScale)
     canvas.restoreToCount(layer)
@@ -2917,8 +2938,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
   private fun snapToNearestSpread() {
     if (articleWidth <= 0f || maxScrollX <= 0f) return
-    val target =
-      (foldScrollX / articleWidth).roundToInt().times(articleWidth).coerceIn(0f, maxScrollX)
+    val target = nearestReadingSnapTarget(foldScrollX)
     if (abs(target - foldScrollX) < 1f) {
       foldScrollX = target
       invalidate()
@@ -2929,7 +2949,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
     scrollReturnAnimator =
       ValueAnimator.ofFloat(start, target).apply {
         duration =
-          ((180L + abs(target - start) / max(1f, articleWidth) * 150L).roundToInt())
+          ((180L + abs(target - start) / max(1f, readingSnapStep()) * 150L).roundToInt())
             .coerceIn(180, 360)
             .toLong()
         interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
@@ -2950,6 +2970,26 @@ internal class MemorialFoldView(context: Context) : View(context) {
         )
         start()
       }
+  }
+
+  private fun nearestReadingSnapTarget(scrollX: Float): Float {
+    val step = readingSnapStep()
+    if (step <= 0f) return 0f
+    val roundedTarget = (scrollX / step).roundToInt() * step
+    val candidates =
+      listOf(
+        0f,
+        roundedTarget - step,
+        roundedTarget,
+        roundedTarget + step,
+        maxScrollX,
+      )
+    return candidates.map { it.coerceIn(0f, maxScrollX) }.minByOrNull { abs(it - scrollX) }
+      ?: scrollX.coerceIn(0f, maxScrollX)
+  }
+
+  private fun readingSnapStep(): Float {
+    return articleWidth * pagesPerSpreadForViewport(foldRight - foldLeft)
   }
 
   private fun dp(value: Float): Float = value * displayDensity

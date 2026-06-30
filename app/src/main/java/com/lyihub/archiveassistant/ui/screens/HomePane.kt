@@ -89,7 +89,8 @@ private val ZhongshuWorkLight = Color(0xFF55DDEB)
 private val MenxiaWorkLight = ZhongshuWorkLight
 private const val HomePulseCycleMillis = 1800
 private const val HomePulseCyclesPerTarget = 1
-private const val HomePulseShineMillis = 700
+private const val HomePulseShineMillis = 900
+private const val HomePulseShakePauseMillis = 720L
 private const val HomeWorkTextMinMillis = 420L
 private const val HomeWorkTextMaxMillis = 1860L
 
@@ -368,11 +369,14 @@ private fun HomeFeatureCell(
   val cardMotion = remember { Animatable(0f) }
   LaunchedEffect(pulseActive) {
     if (pulseActive) {
-      cardMotion.snapTo(0f)
-      cardMotion.animateTo(
-        targetValue = 1f,
-        animationSpec = tween(durationMillis = HomePulseShineMillis, easing = LinearEasing),
-      )
+      while (pulseActive) {
+        cardMotion.snapTo(0f)
+        cardMotion.animateTo(
+          targetValue = 1f,
+          animationSpec = tween(durationMillis = HomePulseShineMillis, easing = LinearEasing),
+        )
+        delay(HomePulseShakePauseMillis)
+      }
     } else {
       cardMotion.snapTo(0f)
     }
