@@ -20,6 +20,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "ArchiveAssistant"
+rootProject.name = "JuHeShiYi"
 
 include(":app")

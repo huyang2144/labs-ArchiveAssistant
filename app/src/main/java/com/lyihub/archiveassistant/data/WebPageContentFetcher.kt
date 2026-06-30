@@ -82,7 +82,7 @@ class OkHttpWebPageTransport(private val client: OkHttpClient = defaultWebPageOk
     }
 
   private companion object {
-    const val USER_AGENT = "Mozilla/5.0 (Android) ArchiveAssistant/1.0"
+    const val USER_AGENT = "Mozilla/5.0 (Android) JuHeShiYi/1.0"
   }
 }
 

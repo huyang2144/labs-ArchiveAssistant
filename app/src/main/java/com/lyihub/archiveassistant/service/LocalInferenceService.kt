@@ -127,7 +127,7 @@ class LocalInferenceService : Service() {
           NOTIFICATION_CHANNEL_ID,
         )
         .setSmallIcon(R.mipmap.ic_launcher)
-        .setContentTitle("ArchiveAssistant")
+        .setContentTitle(getString(R.string.app_name))
         .setContentText(contentText)
         .setOngoing(true)
         .setPriority(NotificationCompat.PRIORITY_LOW)

@@ -16,14 +16,14 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ArchiveAssistant">
+        android:theme="@style/Theme.JuHeShiYi">
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:resizeableActivity="true"
             android:configChanges="screenSize|smallestScreenSize|orientation|screenLayout"
-            android:theme="@style/Theme.ArchiveAssistant">
+            android:theme="@style/Theme.JuHeShiYi">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

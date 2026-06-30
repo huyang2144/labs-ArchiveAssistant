@@ -826,28 +826,33 @@ private fun SearchCell(
         color = Color.White,
         fontWeight = FontWeight.Normal,
       )
+      val searchTextStyle =
+        MaterialTheme.typography.bodyMedium.copy(
+          color = Color.White,
+          fontFamily = ImperialDisplayFont,
+        )
       BasicTextField(
         value = searchQuery,
         onValueChange = onSearchQueryChanged,
         singleLine = true,
-        textStyle =
-          MaterialTheme.typography.bodyMedium.copy(
-            color = Color.White,
-            fontFamily = ImperialDisplayFont,
-          ),
+        textStyle = searchTextStyle,
         modifier = Modifier.fillMaxWidth().testTag("home-search-input"),
         decorationBox = { innerTextField ->
           Box(
             modifier =
               Modifier.fillMaxWidth()
+                .height(34.dp)
                 .background(Color.White.copy(alpha = 0.18f))
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                .padding(horizontal = 10.dp),
+            contentAlignment = Alignment.CenterStart,
           ) {
             if (searchQuery.isBlank()) {
               Text(
                 text = "查找主题或资料...",
-                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = ImperialDisplayFont),
+                style = searchTextStyle,
                 color = Color.White.copy(alpha = 0.62f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
               )
             }
             innerTextField()
@@ -1377,13 +1382,14 @@ private fun dashboardFolders(
   itemsByTopic: Map<String, List<KnowledgeItem>>,
   searchQuery: String = "",
 ): List<DashboardFolder> {
+  val now = System.currentTimeMillis()
   if (searchQuery.isNotBlank()) {
-    return topics.map { topic ->
+    return topics.mapIndexed { index, topic ->
       DashboardFolder(
         id = topic.id,
         title = topic.title,
         itemCount = itemsByTopic[topic.id]?.size ?: 0,
-        updatedAtEpochMillis = topic.updatedAtEpochMillis,
+        updatedAtEpochMillis = demoFolderUpdatedAt(index, now),
         topic = topic,
       )
     }
@@ -1394,10 +1400,23 @@ private fun dashboardFolders(
       id = topic?.id ?: "dashboard-folder-${index + 1}",
       title = topic?.title ?: FolderFallbackTitles[index],
       itemCount = topic?.let { itemsByTopic[it.id]?.size ?: 0 } ?: 0,
-      updatedAtEpochMillis = topic?.updatedAtEpochMillis,
+      updatedAtEpochMillis = demoFolderUpdatedAt(index, now),
       topic = topic,
     )
   }
+}
+
+private fun demoFolderUpdatedAt(index: Int, nowMillis: Long): Long {
+  val offsets =
+    listOf(
+      36L * 60_000L,
+      9L * 3_600_000L,
+      2L * 86_400_000L,
+      4L * 86_400_000L,
+      6L * 86_400_000L,
+      8L * 86_400_000L,
+    )
+  return nowMillis - offsets[index.coerceIn(0, offsets.lastIndex)]
 }
 
 internal fun friendlyTime(epochMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {
@@ -1407,6 +1426,7 @@ internal fun friendlyTime(epochMillis: Long, nowMillis: Long = System.currentTim
     diff < 60_000 -> "刚刚"
     diff < 3_600_000 -> "${(diff / 60_000).toInt().toChineseCount()}分钟前"
     diff < 86_400_000 -> "${(diff / 3_600_000).toInt().toChineseCount()}小时前"
+    diff < 14L * 86_400_000L -> "一周前"
     diff < 2_592_000_000L -> "${(diff / 86_400_000).toInt().toChineseCount()}天前"
     else -> "很久以前"
   }

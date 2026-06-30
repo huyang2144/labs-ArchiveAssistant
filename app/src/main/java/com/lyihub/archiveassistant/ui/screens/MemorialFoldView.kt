@@ -146,7 +146,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       stage == MemorialStage.CoverOnly &&
         coverSwipeAnimator == null &&
         currentStamp == null &&
-        (coverTouchStartedOnCover || coverSummaryPressed)
+        coverSummaryPressed
     ) {
       coverPreviewStampTargetStrength = 0f
       coverPreviewStampStrength = 0f
@@ -551,8 +551,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
         pressedToolbarButton = coverPressedToolbarButton(event.x, event.y)
         if (coverSummaryPressed) {
           postDelayed(showSummaryRunnable, 120L)
-        } else if (coverTouchStartedOnCover && toolbarPressedStamp == null) {
-          postDelayed(showSummaryRunnable, 420L)
         }
         coverDragX = 0f
         coverDragY = 0f
@@ -584,7 +582,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
             hideSummary(animated = true)
           }
           removeCallbacks(showSummaryRunnable)
-          if (coverTouchStartedOnCover || coverSummaryPressed) {
+          if (coverSummaryPressed) {
             postDelayed(showSummaryRunnable, 360L)
           }
         }
@@ -939,25 +937,27 @@ internal class MemorialFoldView(context: Context) : View(context) {
     val bottomGap = dp(12f) * controlScale
     val buttonHeight = dp(48f) * controlScale
     val bottomTop = foldBottom - buttonHeight - dp(18f) * controlScale
-    val bottomButtonWidth = min(buttonHeight * assets.buttonAspectRatio, controlsWidth * 0.31f)
-    val bottomSideInset = bottomButtonWidth / 2f
+    val bottomGroupWidth = min(dp(430f) * controlScale, controlsWidth)
+    val bottomLeft = foldLeft + ((foldRight - foldLeft) - bottomGroupWidth) / 2f
+    val bottomButtonWidth = min(buttonHeight * assets.buttonAspectRatio, bottomGroupWidth * 0.31f)
+    val bottomButtonCenterInset = bottomButtonWidth / 2f
     buttonLayouter.layoutAspectButton(
       rect = coverActionLeftRect,
-      centerX = foldLeft + bottomSideInset,
+      centerX = bottomLeft + bottomButtonCenterInset,
       top = bottomTop,
       height = buttonHeight,
       maxWidth = bottomButtonWidth,
     )
     buttonLayouter.layoutAspectButton(
       rect = coverActionKeepRect,
-      centerX = foldLeft + (foldRight - foldLeft) / 2f,
+      centerX = bottomLeft + bottomGroupWidth / 2f,
       top = bottomTop,
       height = buttonHeight,
       maxWidth = bottomButtonWidth,
     )
     buttonLayouter.layoutAspectButton(
       rect = coverActionRightRect,
-      centerX = foldRight - bottomSideInset,
+      centerX = bottomLeft + bottomGroupWidth - bottomButtonCenterInset,
       top = bottomTop,
       height = buttonHeight,
       maxWidth = bottomButtonWidth,
@@ -1172,7 +1172,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
     val rectHeight = min(dp(330f), foldBottom - foldTop - dp(76f))
     if (rectWidth <= 0f || rectHeight <= 0f) return
     val centerX = foldLeft + (foldRight - foldLeft) / 2f
-    val centerY = cover.top + cover.height * 0.48f
+    val centerY = cover.top + cover.height * 0.5f
     val left =
       (centerX - rectWidth / 2f).coerceIn(foldLeft + dp(10f), foldRight - dp(10f) - rectWidth)
     val top =

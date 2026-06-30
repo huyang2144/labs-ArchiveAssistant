@@ -27,13 +27,14 @@ class FriendlyTimeTest {
   }
 
   @Test
-  fun friendlyTime_daysAgo_returnsDays() {
-    assertEquals("两天前", friendlyTime(fixedNow - 2 * 86_400_000, fixedNow))
+  fun friendlyTime_weekAgo_returnsWeekForRecentDays() {
+    assertEquals("一周前", friendlyTime(fixedNow - 2 * 86_400_000, fixedNow))
+    assertEquals("一周前", friendlyTime(fixedNow - 10L * 86_400_000, fixedNow))
   }
 
   @Test
-  fun friendlyTime_daysAgo_returnsDaysForUpToOneMonth() {
-    assertEquals("十天前", friendlyTime(fixedNow - 10L * 86_400_000, fixedNow))
+  fun friendlyTime_daysAgo_returnsDaysAfterTwoWeeks() {
+    assertEquals("十五天前", friendlyTime(fixedNow - 15L * 86_400_000, fixedNow))
     assertEquals("二十九天前", friendlyTime(fixedNow - 29L * 86_400_000, fixedNow))
   }
 
