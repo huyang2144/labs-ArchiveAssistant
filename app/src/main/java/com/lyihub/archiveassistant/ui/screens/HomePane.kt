@@ -414,14 +414,14 @@ private fun HomeFeatureCell(
     ) {
       BoxWithConstraints(modifier = Modifier.matchParentSize()) {
         val activeOrnamentSize = ornamentSize * 0.5f
-        val activeOrnamentOffsetY = -(maxHeight / 2f) + activeOrnamentSize / 2f + 8.dp
+        val activeOrnamentOffsetY = -(maxHeight / 2f) + activeOrnamentSize / 2f + 2.dp
         val activeOrnamentOffsetX =
           if (ornamentAlignment == Alignment.CenterStart) 8.dp else (-8).dp
         val ornamentX = lerpDp(ornamentOffsetX, activeOrnamentOffsetX, workProgress)
         val ornamentY = lerpDp(ornamentOffsetY, activeOrnamentOffsetY, workProgress)
         val animatedOrnamentSize = lerpDp(ornamentSize, activeOrnamentSize, workProgress)
         val textOffsetY = -(maxHeight * 0.28f) * workProgress
-        val statusOffsetY = 8.dp * (1f - workProgress) + 4.dp
+        val statusOffsetY = 8.dp * (1f - workProgress) + 8.dp
         HomeOrnament(
           imageRes = ornamentRes,
           modifier =
@@ -487,7 +487,8 @@ private fun HomeFeatureCell(
             text = workText.ifBlank { "loading..." },
             color = workLightColor,
             contentColor = contentColor,
-            modifier = Modifier.align(Alignment.BottomCenter).offset(y = statusOffsetY),
+            modifier =
+              Modifier.align(Alignment.BottomCenter).offset(x = (-6).dp, y = statusOffsetY),
           )
         }
       }
@@ -949,7 +950,7 @@ private fun MinistryStampStack(
               ) {
                 append("尚书省")
               }
-              append("　　")
+              append("\u2002")
               withStyle(
                 SpanStyle(
                   color = Color.Black,

@@ -1255,6 +1255,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
     val rect = RectF(left, top, left + side, top + side)
     paints.layerAlpha.alpha = (255f * alpha.coerceIn(0f, 1f)).roundToInt().coerceIn(0, 255)
     val layer = canvas.saveLayer(rect, paints.layerAlpha)
+    val contentScale = (side / dp(420f)).coerceIn(0.72f, 1f)
 
     assets.completionTexture?.let { texture ->
       canvas.drawBitmap(texture, null, rect, paints.completionImage)
@@ -1267,7 +1268,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     val completionTitlePaint =
       TextPaint(paints.title).apply {
-        textSize = sp(44f)
+        textSize = sp(44f) * contentScale
         color = AndroidColor.rgb(72, 43, 31)
         textAlign = Paint.Align.CENTER
         typeface = assets.stampTypeface
@@ -1275,7 +1276,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       }
     val completionBodyPaint =
       TextPaint(paints.quote).apply {
-        textSize = sp(22f)
+        textSize = sp(22f) * contentScale
         color = AndroidColor.rgb(72, 43, 31)
         textAlign = Paint.Align.CENTER
         typeface = assets.songTypeface
@@ -1288,9 +1289,9 @@ internal class MemorialFoldView(context: Context) : View(context) {
       TextUtils.ellipsize(title, completionTitlePaint, maxTextWidth, TextUtils.TruncateAt.END)
     val fittedBody =
       TextUtils.ellipsize(body, completionBodyPaint, maxTextWidth, TextUtils.TruncateAt.END)
-    val titleCenterY = rect.centerY() - rect.height() * 0.18f
+    val titleCenterY = rect.centerY() - rect.height() * 0.18f * contentScale
     val bodyCenterY = rect.centerY()
-    val stampCenterY = rect.centerY() + rect.height() * 0.18f
+    val stampCenterY = rect.centerY() + rect.height() * 0.18f * contentScale
     drawCenteredText(
       canvas = canvas,
       text = fittedTitle.toString(),
@@ -1305,23 +1306,29 @@ internal class MemorialFoldView(context: Context) : View(context) {
       baseline = bodyCenterY + textCenterOffset(completionBodyPaint),
       paint = completionBodyPaint,
     )
-    drawHorizontalRetreatStamp(canvas, rect.centerX(), stampCenterY)
+    drawHorizontalRetreatStamp(canvas, rect.centerX(), stampCenterY, contentScale)
     canvas.restoreToCount(layer)
     paints.layerAlpha.alpha = 255
   }
 
-  private fun drawHorizontalRetreatStamp(canvas: Canvas, cx: Float, cy: Float) {
+  private fun drawHorizontalRetreatStamp(
+    canvas: Canvas,
+    cx: Float,
+    cy: Float,
+    contentScale: Float,
+  ) {
     val label = "轻点退朝"
     val textPaint =
       TextPaint(paints.stampText).apply {
-        textSize = sp(27f)
+        textSize = sp(27f) * contentScale
         color = AndroidColor.WHITE
         textAlign = Paint.Align.CENTER
         style = Paint.Style.FILL
         strokeWidth = 0f
       }
-    val rectWidth = max(dp(132f), textPaint.measureText(label) + dp(22f))
-    val rectHeight = dp(50f)
+    val rectWidth =
+      max(dp(132f) * contentScale, textPaint.measureText(label) + dp(22f) * contentScale)
+    val rectHeight = dp(50f) * contentScale
     val rect =
       RectF(cx - rectWidth / 2f, cy - rectHeight / 2f, cx + rectWidth / 2f, cy + rectHeight / 2f)
     val texture = assets.pendingNoteStampTexture

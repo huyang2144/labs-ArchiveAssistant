@@ -481,7 +481,7 @@ private fun MemorialWheelCover(
     ) {
       Text(
         text = departmentTitle,
-        style = MaterialTheme.typography.titleSmall.copy(fontSize = 10.sp),
+        style = MaterialTheme.typography.titleSmall.copy(fontSize = 12.sp),
         color = MemorialInk.copy(alpha = 0.82f),
         fontWeight = FontWeight.Normal,
         modifier =

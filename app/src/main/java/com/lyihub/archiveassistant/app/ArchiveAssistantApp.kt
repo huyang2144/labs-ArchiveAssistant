@@ -40,6 +40,7 @@ import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
 import com.lyihub.archiveassistant.ui.layout.LayoutMode
 import com.lyihub.archiveassistant.ui.layout.rememberWindowLayoutInfo
 import com.lyihub.archiveassistant.ui.screens.AddItemDialog
+import com.lyihub.archiveassistant.ui.screens.ArticleMemorialReaderOverlay
 import com.lyihub.archiveassistant.ui.screens.ClipboardDialog
 import com.lyihub.archiveassistant.ui.screens.DeleteItemConfirmDialog
 import com.lyihub.archiveassistant.ui.screens.DetailPane
@@ -166,8 +167,8 @@ fun ArchiveAssistantApp(
     }
 
     state.modalItem?.let { item ->
-      MemorialDemoOverlay(
-        items = listOf(item),
+      ArticleMemorialReaderOverlay(
+        item = item,
         onDismiss = effectiveStateStore::closeCardModal,
       )
     }
@@ -593,7 +594,7 @@ private fun ArchiveHomeContent(
     smartSummarizationMessage = state.smartSummarizationMessage,
     onTopicSelected = stateStore::openTopic,
     onOpenSettings = stateStore::openSettings,
-    onCreateTopic = stateStore::openCreateTopicDialog,
+    onCreateTopic = stateStore::openAddItemDialog,
     onRenameTopic = stateStore::openRenameTopicDialog,
     onDeleteTopic = stateStore::openDeleteConfirmDialog,
     onSearchQueryChanged = stateStore::updateHomeSearchQuery,
