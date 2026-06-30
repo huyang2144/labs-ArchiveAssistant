@@ -81,7 +81,7 @@ internal val ZhongshuTileVisual =
 internal val MenxiaTileVisual =
   ArchiveTileVisual(
     backgroundRes = R.drawable.home_menxia_tile,
-    borderColor = Color(0xFFDEC59E),
+    borderColor = Color(0xFFC6A06B),
   )
 
 internal val MemorialTileVisual =

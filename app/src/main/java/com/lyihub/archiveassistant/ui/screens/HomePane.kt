@@ -503,9 +503,9 @@ private fun WorkStatusLine(
     WorkBreathingLight(
       active = active,
       color = color,
-      modifier = Modifier.size(22.dp),
-      haloSize = 22.dp,
-      dotSize = 5.dp,
+      modifier = Modifier.size(26.dp),
+      haloSize = 26.dp,
+      dotSize = 6.dp,
     )
     AnimatedContent(
       targetState = text,
@@ -524,6 +524,7 @@ private fun WorkStatusLine(
         text = activeText,
         style = MaterialTheme.typography.bodySmall.copy(fontFamily = ImperialDisplayFont),
         color = contentColor.copy(alpha = 0.92f),
+        fontWeight = FontWeight.SemiBold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.widthIn(max = 128.dp),
@@ -568,16 +569,16 @@ private fun WorkBreathingLight(
       modifier =
         Modifier.matchParentSize()
           .graphicsLayer {
-            scaleX = 0.72f + activeGlow * 0.48f
-            scaleY = 0.72f + activeGlow * 0.48f
-            alpha = 0.12f + intensity * 0.18f + activeGlow * 0.58f
+            scaleX = 0.66f + activeGlow * 0.58f
+            scaleY = 0.66f + activeGlow * 0.58f
+            alpha = 0.16f + intensity * 0.24f + activeGlow * 0.68f
           }
           .background(
             Brush.radialGradient(
               colors =
                 listOf(
-                  color.copy(alpha = 0.82f),
-                  color.copy(alpha = 0.28f),
+                  color.copy(alpha = 0.95f),
+                  color.copy(alpha = 0.36f),
                   Color.Transparent,
                 )
             ),
@@ -587,11 +588,11 @@ private fun WorkBreathingLight(
     Box(
       modifier =
         Modifier.size(dotSize)
-          .shadow(7.dp + 7.dp * intensity, RoundedCornerShape(999.dp), clip = false)
-          .background(color.copy(alpha = 0.3f + intensity * 0.66f), RoundedCornerShape(999.dp))
+          .shadow(9.dp + 9.dp * intensity, RoundedCornerShape(999.dp), clip = false)
+          .background(color.copy(alpha = 0.36f + intensity * 0.64f), RoundedCornerShape(999.dp))
           .border(
-            0.7.dp,
-            Color.White.copy(alpha = 0.34f + intensity * 0.46f),
+            0.8.dp,
+            Color.White.copy(alpha = 0.38f + intensity * 0.5f),
             RoundedCornerShape(999.dp),
           )
     )
