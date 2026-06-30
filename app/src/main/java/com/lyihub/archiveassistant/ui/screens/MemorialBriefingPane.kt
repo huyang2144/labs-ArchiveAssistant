@@ -132,10 +132,13 @@ fun MemorialBriefingPane(
   val briefingSamples = remember(briefingItems) { briefingSamplesFor(briefingItems) }
   Box(
     modifier =
-      modifier
-        .fillMaxSize()
-        .background(ImperialIvory)
-        .clickable(enabled = !showEmptyState, onClick = onOpenMemorialDemo)
+      modifier.fillMaxSize().background(ImperialIvory).clickable {
+        if (showEmptyState) {
+          showEmptyState = false
+        } else {
+          onOpenMemorialDemo()
+        }
+      }
   ) {
     if (showEmptyState) {
       EmptyMemorialBriefingState(modifier = Modifier.fillMaxSize())
@@ -477,7 +480,7 @@ private fun MemorialWheelCover(
           .padding(frameOutset)
     ) {
       Text(
-        text = "「$departmentTitle」",
+        text = departmentTitle,
         style = MaterialTheme.typography.titleSmall.copy(fontSize = 10.sp),
         color = MemorialInk.copy(alpha = 0.82f),
         fontWeight = FontWeight.Normal,
@@ -678,7 +681,7 @@ private fun MemorialBriefCard(
           alpha = 0.24f,
         )
         Column(
-          modifier = Modifier.fillMaxWidth().align(Alignment.CenterStart).padding(end = 56.dp),
+          modifier = Modifier.fillMaxWidth().align(Alignment.CenterStart),
           verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
           Text(

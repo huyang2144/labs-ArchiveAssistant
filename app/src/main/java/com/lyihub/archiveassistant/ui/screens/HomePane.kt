@@ -45,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -366,11 +365,6 @@ private fun HomeFeatureCell(
       contentColor = contentColor,
       tileVisual = tileVisual,
     ) {
-      TileShineSweep(
-        active = pulseActive,
-        color = workLightColor ?: tileVisual.borderColor,
-        modifier = Modifier.matchParentSize(),
-      )
       BoxWithConstraints(modifier = Modifier.matchParentSize()) {
         val activeOrnamentSize = ornamentSize * 0.5f
         val activeOrnamentOffsetY = -(maxHeight / 2f) + activeOrnamentSize / 2f + 8.dp
@@ -443,48 +437,6 @@ private fun HomeFeatureCell(
       }
     }
   }
-}
-
-@Composable
-private fun TileShineSweep(
-  active: Boolean,
-  color: Color,
-  modifier: Modifier = Modifier,
-) {
-  val progress = remember { Animatable(0f) }
-  LaunchedEffect(active) {
-    if (active) {
-      progress.snapTo(0f)
-      progress.animateTo(
-        targetValue = 1f,
-        animationSpec = tween(durationMillis = HomePulseShineMillis, easing = LinearEasing),
-      )
-    } else {
-      progress.snapTo(0f)
-    }
-  }
-  if (!active && progress.value <= 0f) return
-  Box(
-    modifier =
-      modifier.drawBehind {
-        val sweepWidth = size.minDimension * 0.32f
-        val left = -sweepWidth + (size.width + sweepWidth * 2f) * progress.value
-        drawRect(
-          brush =
-            Brush.linearGradient(
-              colors =
-                listOf(
-                  Color.Transparent,
-                  color.copy(alpha = 0.28f),
-                  Color.Transparent,
-                ),
-              start = Offset(left, size.height),
-              end = Offset(left + sweepWidth, 0f),
-            ),
-          size = size,
-        )
-      }
-  )
 }
 
 @Composable
@@ -611,7 +563,7 @@ private fun TilePulseWave(
   Box(
     modifier =
       modifier.drawBehind {
-        val baseStroke = (size.minDimension * 0.034f).coerceIn(2.4f, 4.8f)
+        val baseStroke = (size.minDimension * 0.052f).coerceIn(4.4f, 8.0f)
         val cycleProgress = progress.value % 1f
         listOf(0f, 0.38f).forEachIndexed { index, delay ->
           val phase = (cycleProgress - delay).takeIf { it >= 0f } ?: (cycleProgress + 1f - delay)
@@ -622,7 +574,7 @@ private fun TilePulseWave(
               width = size.width + inset * 2f,
               height = size.height + inset * 2f,
             )
-          val alpha = (1f - phase).coerceIn(0f, 1f) * if (index == 0) 0.42f else 0.32f
+          val alpha = (1f - phase).coerceIn(0f, 1f) * if (index == 0) 0.62f else 0.48f
           drawPath(
             path = cutoutPulsePath(expandedSize, inset),
             color = color.copy(alpha = alpha),
