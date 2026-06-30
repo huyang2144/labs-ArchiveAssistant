@@ -841,32 +841,41 @@ private fun SearchCell(
         decorationBox = { innerTextField ->
           Box(
             modifier =
-              Modifier.fillMaxWidth()
-                .height(34.dp)
-                .background(Color.White.copy(alpha = 0.18f))
-                .padding(start = 10.dp, end = if (searchQuery.isBlank()) 10.dp else 34.dp),
+              Modifier.fillMaxWidth().height(34.dp).background(Color.White.copy(alpha = 0.18f)),
             contentAlignment = Alignment.CenterStart,
           ) {
-            if (searchQuery.isBlank()) {
-              Text(
-                text = "查找主题或资料...",
-                style = searchTextStyle,
-                color = Color.White.copy(alpha = 0.62f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-              )
+            Box(
+              modifier =
+                Modifier.matchParentSize()
+                  .padding(start = 10.dp, end = if (searchQuery.isBlank()) 10.dp else 34.dp),
+              contentAlignment = Alignment.CenterStart,
+            ) {
+              if (searchQuery.isBlank()) {
+                Text(
+                  text = "查找主题或资料...",
+                  style = searchTextStyle,
+                  color = Color.White.copy(alpha = 0.62f),
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
+                )
+              }
+              innerTextField()
             }
-            innerTextField()
             if (searchQuery.isNotBlank()) {
-              IconButton(
-                onClick = { onSearchQueryChanged("") },
-                modifier = Modifier.align(Alignment.CenterEnd).size(30.dp),
+              Box(
+                modifier =
+                  Modifier.align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(34.dp)
+                    .clickable { onSearchQueryChanged("") }
+                    .testTag("home-search-clear-button"),
+                contentAlignment = Alignment.Center,
               ) {
                 Icon(
                   imageVector = Icons.Default.Close,
                   contentDescription = "清空搜索",
-                  tint = Color.White.copy(alpha = 0.82f),
-                  modifier = Modifier.size(16.dp),
+                  tint = Color.White.copy(alpha = 0.86f),
+                  modifier = Modifier.size(15.dp),
                 )
               }
             }

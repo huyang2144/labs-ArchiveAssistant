@@ -1681,8 +1681,9 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private fun rebuildLayout(viewWidth: Int, viewHeight: Int) {
     if (viewWidth <= 0 || viewHeight <= 0) return
 
-    foldLeft = dp(20f)
-    foldRight = viewWidth - dp(20f)
+    val previousStartPageIndex = readingStartPageIndexForScroll()
+    foldLeft = 0f
+    foldRight = viewWidth.toFloat()
     foldTop = dp(20f)
     foldBottom = viewHeight - dp(20f)
 
@@ -1709,7 +1710,12 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     maxScrollX =
       max(0f, nextLeft - articleWidth * pagesPerSpreadForViewport(viewportWidth, viewportHeight))
-    foldScrollX = foldScrollX.coerceIn(0f, maxScrollX)
+    foldScrollX =
+      if (stage == MemorialStage.Expanded) {
+        readingSnapTargetForPage(previousStartPageIndex)
+      } else {
+        foldScrollX.coerceIn(0f, maxScrollX)
+      }
   }
 
   private fun paginateDossierBody(dossier: PendingMemorialDossier): List<String> {
@@ -1743,7 +1749,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun resolvedArticleSize(viewWidth: Int, viewHeight: Int): SizeF {
-    val viewportWidth = (viewWidth - dp(40f)).coerceAtLeast(1f)
+    val viewportWidth = viewWidth.toFloat().coerceAtLeast(1f)
     val viewportHeight = (viewHeight - dp(40f)).coerceAtLeast(1f)
     return resolvedArticleSizeForViewport(viewportWidth, viewportHeight)
   }
@@ -2967,17 +2973,43 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun nearestReadingSnapTarget(scrollX: Float): Float {
-    val step = readingSnapStep()
-    if (step <= 0f) return 0f
-    val snapCount = (maxScrollX / step).roundToInt().coerceAtLeast(0)
+    if (articleWidth <= 0f || maxScrollX <= 0f) return 0f
     val clampedScroll = scrollX.coerceIn(0f, maxScrollX)
-    val candidates =
-      (0..snapCount).map { index -> (index * step).coerceIn(0f, maxScrollX) } + maxScrollX
-    return candidates.distinct().minByOrNull { abs(it - clampedScroll) } ?: clampedScroll
+    return readingSnapTargets().minByOrNull { abs(it - clampedScroll) } ?: clampedScroll
   }
 
   private fun readingSnapStep(): Float {
-    return articleWidth * pagesPerSpreadForViewport(foldRight - foldLeft)
+    return articleWidth
+  }
+
+  private fun readingSnapTargets(): List<Float> {
+    if (articleWidth <= 0f || articles.isEmpty()) return listOf(0f)
+    val maxStartPageIndex = maxReadingStartPageIndex()
+    return (0..maxStartPageIndex).map { index -> readingSnapTargetForPage(index) }
+  }
+
+  private fun readingSnapTargetForPage(pageIndex: Int): Float {
+    if (articleWidth <= 0f || maxScrollX <= 0f) return 0f
+    return (pageIndex.coerceIn(0, maxReadingStartPageIndex()) * articleWidth).coerceIn(
+      0f,
+      maxScrollX,
+    )
+  }
+
+  private fun maxReadingStartPageIndex(): Int {
+    val pagesPerSpread =
+      pagesPerSpreadForViewport(foldRight - foldLeft, foldBottom - foldTop)
+        .roundToInt()
+        .coerceIn(1, 2)
+    return (articles.size - pagesPerSpread).coerceAtLeast(0)
+  }
+
+  private fun readingStartPageIndexForScroll(
+    scrollX: Float = foldScrollX,
+    pageWidth: Float = articleWidth,
+  ): Int {
+    if (pageWidth <= 0f) return 0
+    return (scrollX / pageWidth).roundToInt().coerceAtLeast(0)
   }
 
   private fun dp(value: Float): Float = value * displayDensity
