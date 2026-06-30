@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -163,7 +164,10 @@ fun HomePane(
   var isManagingMinistries by remember { mutableStateOf(false) }
 
   Box(modifier = modifier.testTag("home-pane").fillMaxSize()) {
-    Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Box(
+      modifier =
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState(), overscrollEffect = null)
+    ) {
       HomeContentColumn(
         modifier =
           Modifier.padding(
@@ -321,7 +325,7 @@ private fun TitleCell(
         modifier = Modifier.clickable(onClick = onTitlePulseRequested),
       )
       Text(
-        text = "拾取资料、整理主题、轮盘批阅、瀑布流阅读",
+        text = "拾取资料、整理主题、批阅奏折、瀑布流阅读",
         style = MaterialTheme.typography.titleSmall.copy(fontFamily = ImperialDisplayFont),
         color = Color.Black.copy(alpha = 0.72f),
         maxLines = 1,
@@ -412,7 +416,11 @@ private fun HomeFeatureCell(
         val activeOrnamentSize = ornamentSize * 0.5f
         val activeOrnamentOffsetY = -(maxHeight / 2f) + activeOrnamentSize / 2f + 8.dp
         val activeOrnamentOffsetX =
-          if (ornamentAlignment == Alignment.CenterStart) 8.dp else (-8).dp
+          if (ornamentAlignment == Alignment.CenterStart) {
+            -(maxWidth / 2f) + activeOrnamentSize / 2f + 8.dp
+          } else {
+            maxWidth / 2f - activeOrnamentSize / 2f - 8.dp
+          }
         val ornamentX = lerpDp(ornamentOffsetX, activeOrnamentOffsetX, workProgress)
         val ornamentY = lerpDp(ornamentOffsetY, activeOrnamentOffsetY, workProgress)
         val animatedOrnamentSize = lerpDp(ornamentSize, activeOrnamentSize, workProgress)
@@ -424,7 +432,15 @@ private fun HomeFeatureCell(
             Modifier.align(ornamentAlignment)
               .offset(x = ornamentX, y = ornamentY)
               .size(animatedOrnamentSize)
-              .graphicsLayer(scaleX = if (mirrorOrnament) -1f else 1f),
+              .graphicsLayer {
+                scaleX = if (mirrorOrnament) -1f else 1f
+                transformOrigin =
+                  if (ornamentAlignment == Alignment.CenterStart) {
+                    TransformOrigin(0f, 0f)
+                  } else {
+                    TransformOrigin(1f, 0f)
+                  }
+              },
           alpha = if (large) 0.5f else 0.58f,
           tint = ornamentTint,
         )
@@ -763,9 +779,9 @@ private fun PalaceDashboardBlock(
           modifier = Modifier.weight(1f).height(searchRowHeight),
           onClick = onOpenClipboard,
           testTag = "clipboard-button",
-          ornamentSize = 68.dp,
-          ornamentOffsetX = (-8).dp,
-          ornamentOffsetY = 10.dp,
+          ornamentSize = 60.dp,
+          ornamentOffsetX = 2.dp,
+          ornamentOffsetY = 2.dp,
           ornamentAlignment = Alignment.TopEnd,
           ornamentTint = Color.White,
         )
@@ -800,8 +816,8 @@ private fun SearchCell(
       alpha = 0.66f,
     )
     Column(
-      modifier = Modifier.fillMaxSize().padding(14.dp),
-      verticalArrangement = Arrangement.SpaceBetween,
+      modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp),
+      verticalArrangement = Arrangement.SpaceEvenly,
     ) {
       Text(
         text = "藏经阁",
@@ -824,7 +840,7 @@ private fun SearchCell(
             modifier =
               Modifier.fillMaxWidth()
                 .background(Color.White.copy(alpha = 0.18f))
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 10.dp, vertical = 6.dp)
           ) {
             if (searchQuery.isBlank()) {
               Text(
@@ -873,7 +889,7 @@ private fun MemorialCell(
   ) {
     HomeOrnament(
       imageRes = R.drawable.home_ornament_memorial,
-      modifier = Modifier.align(Alignment.CenterEnd).offset(x = 24.dp, y = (-18).dp).size(138.dp),
+      modifier = Modifier.align(Alignment.TopEnd).offset(x = 16.dp, y = (-14).dp).size(126.dp),
       alpha = 0.66f,
     )
     Column(modifier = Modifier.align(Alignment.BottomStart).padding(13.dp)) {

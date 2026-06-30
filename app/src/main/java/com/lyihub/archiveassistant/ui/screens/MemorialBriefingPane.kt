@@ -641,7 +641,7 @@ private fun BriefingCopy(
   ) {
     PaneHeroHeader(
       title = "奏章",
-      description = "轻触此页展开奏章堆叠，准、驳、留中皆可一笔批下",
+      description = "轻触此页批阅奏章，准、驳、留中皆可一笔批下",
       showBackButton = showBackButton,
       onBack = onBack,
       onTitleClick = onTitleClick,
